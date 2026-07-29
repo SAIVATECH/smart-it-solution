@@ -1,0 +1,152 @@
+[2026-07-19 16:10:30:1030] [[31merror[39m]: [31mLogin API Error: [39m
+[31mInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].user.findUnique()` invocation in[39m
+[31mD:\projects\AI-Powered WhatsApp Sales Automation Platform\.next\dev\server\chunks\[root-of-the-server]__0yev03b._.js:282:158[39m
+
+[31m  279 }[39m
+[31m  280 const { email, password } = result.data;[39m
+[31m  281 // Find user in PostgreSQL SaaS db[39m
+[31m→ 282 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].user.findUnique([39m
+[31mThe table `public.User` does not exist in the current database.[39m
+[2026-07-19 16:11:57:1157] [[31merror[39m]: [31mLogin API Error: [39m
+[31mInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].user.findUnique()` invocation in[39m
+[31mD:\projects\AI-Powered WhatsApp Sales Automation Platform\.next\dev\server\chunks\[root-of-the-server]__0yev03b._.js:282:158[39m
+
+[31m  279 }[39m
+[31m  280 const { email, password } = result.data;[39m
+[31m  281 // Find user in PostgreSQL SaaS db[39m
+[31m→ 282 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].user.findUnique([39m
+[31mThe table `public.User` does not exist in the current database.[39m
+[2026-07-19 16:28:27:2827] [[31merror[39m]: [31mHealth check failed for tenant acme-tenant-uuid-12345: fetch failed[39m
+[2026-07-19 16:39:08:398] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:39:08:398] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:39:09:399] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:39:09:399] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:39:10:3910] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:39:10:3910] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:39:11:3911] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:39:12:3912] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:39:33:3933] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:39:33:3933] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:41:22:4122] [[31merror[39m]: [31mMissing GROK_API_KEY environment variable[39m
+[2026-07-19 16:41:23:4123] [[31merror[39m]: [31mFailed to send WhatsApp message. Meta API status 401: {"error":{"message":"Invalid OAuth access token - Cannot parse access token","type":"OAuthException","code":190,"fbtrace_id":"AqM8J2srAiuwEFvroXqW7aW"}}[39m
+[2026-07-19 16:43:29:4329] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:44:13:4413] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:30:4530] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:30:4530] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:30:4530] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:31:4531] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:31:4531] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:31:4531] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:32:4532] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:34:4534] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:45:4545] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:48:4548] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:50:4550] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:45:55:4555] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 1078761195330328[39m
+[2026-07-19 16:47:21:4721] [[31merror[39m]: [31mMissing GROK_API_KEY environment variable[39m
+[2026-07-19 16:47:21:4721] [[31merror[39m]: [31mMissing GROK_API_KEY environment variable[39m
+[2026-07-19 16:47:22:4722] [[31merror[39m]: [31mFailed to send WhatsApp message. Meta API status 401: {"error":{"message":"Authentication Error","code":190,"type":"OAuthException","fbtrace_id":"AhesN-HydQFM5tqjbuKSJRz"}}[39m
+[2026-07-19 16:47:22:4722] [[31merror[39m]: [31mFailed to send WhatsApp message. Meta API status 401: {"error":{"message":"Authentication Error","code":190,"type":"OAuthException","fbtrace_id":"A649oIG0FrBXRo0NOVNG0HZ"}}[39m
+[2026-07-22 23:50:26:5026] [[31merror[39m]: [31mGoogle Sheets Sync Job failed for tenant acme-tenant-uuid-12345: Failed to query Google Sheets API. Status 404: {[39m
+[31m  "error": {[39m
+[31m    "code": 404,[39m
+[31m    "message": "Requested entity was not found.",[39m
+[31m    "status": "NOT_FOUND"[39m
+[31m  }[39m
+[31m}[39m
+[31m[39m
+[2026-07-22 23:51:52:5152] [[31merror[39m]: [31mGoogle Sheets Sync Job failed for tenant acme-tenant-uuid-12345: Required header columns missing. Must include: 'id', 'name', 'price', and 'stock'.[39m
+[2026-07-22 23:54:24:5424] [[31merror[39m]: [31mGoogle Sheets Sync Job failed for tenant acme-tenant-uuid-12345: Required header column 'id' is missing. Please ensure your sheet has an 'id' header column.[39m
+[2026-07-23 00:00:22:022] [[31merror[39m]: [31mGoogle Sheets Sync Job failed for tenant acme-tenant-uuid-12345: Required ID header column is missing. Please ensure your sheet has an 'id' or 'Sl no' column.[39m
+[2026-07-23 11:20:47:2047] [[31merror[39m]: [31mAI Sales Executive error processing message: fetch failed[39m
+[2026-07-23 13:35:56:3556] [[31merror[39m]: [31mSync Job e271fc18-b3cc-43a7-8eb8-601d17cfd8ee failed: fetch failed[39m
+[2026-07-23 13:46:47:4647] [[31merror[39m]: [31mError sending message through Meta API: fetch failed[39m
+[2026-07-23 16:23:48:2348] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-23 16:24:17:2417] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-24 13:49:51:4951] [[31merror[39m]: [31mError sending message through Meta API: fetch failed[39m
+[2026-07-24 13:50:15:5015] [[31merror[39m]: [31mAI Sales Executive error processing message: fetch failed[39m
+[2026-07-24 13:50:15:5015] [[31merror[39m]: [31mError sending message through Meta API: fetch failed[39m
+[2026-07-24 13:52:48:5248] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq follow-up request failed after all attempts.[39m
+[2026-07-24 13:53:08:538] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-24 13:53:23:5323] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-24 13:57:05:575] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-24 14:07:17:717] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-24 14:35:11:3511] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-24 14:40:27:4027] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-25 11:27:48:2748] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq follow-up request failed after all attempts.[39m
+[2026-07-28 23:16:43:1643] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-28 23:17:08:178] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-28 23:17:42:1742] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-28 23:21:02:212] [[31merror[39m]: [31mAI Sales Executive error processing message: Groq API request failed after all attempts.[39m
+[2026-07-28 23:24:07:247] [[31merror[39m]: [31mAI Sales Executive error processing message: Gemini API request failed after all attempts.[39m
+[2026-07-28 23:24:25:2425] [[31merror[39m]: [31mAI Sales Executive error processing message: Gemini API request failed after all attempts.[39m
+[2026-07-28 23:24:52:2452] [[31merror[39m]: [31mAI Sales Executive error processing message: Gemini API request failed after all attempts.[39m
+[2026-07-28 23:26:10:2610] [[31merror[39m]: [31mAI Sales Executive error processing message: Gemini follow-up request failed after all attempts.[39m
+[2026-07-28 23:28:10:2810] [[31merror[39m]: [31mAI Sales Executive error processing message: Gemini follow-up request failed after all attempts.[39m
+[2026-07-28 23:29:23:2923] [[31merror[39m]: [31mAI Sales Executive error processing message: Gemini follow-up request failed after all attempts.[39m
+[2026-07-28 23:29:53:2953] [[31merror[39m]: [31mAI Sales Executive error processing message: Gemini follow-up request failed after all attempts.[39m
+[2026-07-29 13:18:32:1832] [[31merror[39m]: [31mDashboard API Error: [39m
+[31mInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst()` invocation in[39m
+[31mD:\projects\AI-Powered WhatsApp Sales Automation Platform\.next\dev\server\chunks\[root-of-the-server]__1czb4oa._.js:205:174[39m
+
+[31m  202 // Read tenant from middleware header or default to first tenant[39m
+[31m  203 let tenantId = req.headers.get("x-tenant-id");[39m
+[31m  204 if (!tenantId) {[39m
+[31m→ 205     const fallbackTenant = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst([39m
+[31mCan't reach database server at `aws-0-ap-southeast-1.pooler.supabase.com:6543`[39m
+
+[31mPlease make sure your database server is running at `aws-0-ap-southeast-1.pooler.supabase.com:6543`.[39m
+[2026-07-29 14:14:53:1453] [[31merror[39m]: [31mReceived webhook event for unregistered phoneId: 123456789012345[39m
+[2026-07-29 14:31:15:3115] [[31merror[39m]: [31mDashboard API Error: [39m
+[31mInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].serverConnection.findUnique()` invocation in[39m
+[31mD:\projects\AI-Powered WhatsApp Sales Automation Platform\.next\dev\server\chunks\[root-of-the-server]__1czb4oa._.js:216:176[39m
+
+[31m  213     tenantId = fallbackTenant.id;[39m
+[31m  214 }[39m
+[31m  215 // 1. Get Connection status[39m
+[31m→ 216 const connection = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].serverConnection.findUnique([39m
+[31mServer has closed the connection.[39m
+[2026-07-29 14:31:20:3120] [[31merror[39m]: [31mDashboard API Error: [39m
+[31mInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst()` invocation in[39m
+[31mD:\projects\AI-Powered WhatsApp Sales Automation Platform\.next\dev\server\chunks\[root-of-the-server]__1czb4oa._.js:205:174[39m
+
+[31m  202 // Read tenant from middleware header or default to first tenant[39m
+[31m  203 let tenantId = req.headers.get("x-tenant-id");[39m
+[31m  204 if (!tenantId) {[39m
+[31m→ 205     const fallbackTenant = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst([39m
+[31mCan't reach database server at `aws-0-ap-southeast-1.pooler.supabase.com:6543`[39m
+
+[31mPlease make sure your database server is running at `aws-0-ap-southeast-1.pooler.supabase.com:6543`.[39m
+[2026-07-29 14:31:25:3125] [[31merror[39m]: [31mDashboard API Error: [39m
+[31mInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst()` invocation in[39m
+[31mD:\projects\AI-Powered WhatsApp Sales Automation Platform\.next\dev\server\chunks\[root-of-the-server]__1czb4oa._.js:205:174[39m
+
+[31m  202 // Read tenant from middleware header or default to first tenant[39m
+[31m  203 let tenantId = req.headers.get("x-tenant-id");[39m
+[31m  204 if (!tenantId) {[39m
+[31m→ 205     const fallbackTenant = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst([39m
+[31mCan't reach database server at `aws-0-ap-southeast-1.pooler.supabase.com:6543`[39m
+
+[31mPlease make sure your database server is running at `aws-0-ap-southeast-1.pooler.supabase.com:6543`.[39m
+[2026-07-29 14:31:27:3127] [[31merror[39m]: [31mDashboard API Error: [39m
+[31mInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst()` invocation in[39m
+[31mD:\projects\AI-Powered WhatsApp Sales Automation Platform\.next\dev\server\chunks\[root-of-the-server]__1czb4oa._.js:205:174[39m
+
+[31m  202 // Read tenant from middleware header or default to first tenant[39m
+[31m  203 let tenantId = req.headers.get("x-tenant-id");[39m
+[31m  204 if (!tenantId) {[39m
+[31m→ 205     const fallbackTenant = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst([39m
+[31mCan't reach database server at `aws-0-ap-southeast-1.pooler.supabase.com:6543`[39m
+
+[31mPlease make sure your database server is running at `aws-0-ap-southeast-1.pooler.supabase.com:6543`.[39m
+[2026-07-29 14:31:38:3138] [[31merror[39m]: [31mDashboard API Error: [39m
+[31mInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst()` invocation in[39m
+[31mD:\projects\AI-Powered WhatsApp Sales Automation Platform\.next\dev\server\chunks\[root-of-the-server]__1czb4oa._.js:205:174[39m
+
+[31m  202 // Read tenant from middleware header or default to first tenant[39m
+[31m  203 let tenantId = req.headers.get("x-tenant-id");[39m
+[31m  204 if (!tenantId) {[39m
+[31m→ 205     const fallbackTenant = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].tenant.findFirst([39m
+[31mCan't reach database server at `aws-0-ap-southeast-1.pooler.supabase.com:6543`[39m
+
+[31mPlease make sure your database server is running at `aws-0-ap-southeast-1.pooler.supabase.com:6543`.[39m

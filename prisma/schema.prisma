@@ -1,0 +1,335 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tenant {
+  id                 String              @id @default(uuid())
+  name               String
+  status             String              @default("ACTIVE") // ACTIVE, SUSPENDED
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  users              User[]
+  whatsappAccounts   WhatsAppAccount[]
+  customers          Customer[]
+  products           Product[]
+  categories         Category[]
+  serverConnections  ServerConnection[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  leads              Lead[]
+  orders             Order[]
+  knowledgeDocuments KnowledgeDocument[]
+  aiSettings         AISettings?
+  branding           BrandingSettings?
+  productSourceConfig ProductSourceConfig?
+  salespersons       Salesperson[]
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         String     @default("STAFF") // ADMIN, STAFF, SUPERADMIN
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model BrandingSettings {
+  id             String   @id @default(uuid())
+  tenantId       String   @unique
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brandName      String   @default("Sales Automator AI")
+  logoUrl        String?  @db.Text
+  faviconUrl     String?  @db.Text
+  primaryColor   String   @default("#06b6d4") // Cyan hex default
+  secondaryColor String   @default("#6366f1") // Indigo hex default
+  supportEmail   String?
+  supportPhone   String?
+  customDomain   String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model WhatsAppAccount {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phoneNumber  String
+  phoneId      String // Meta Phone Number ID
+  wabaId       String // Meta WhatsApp Business Account ID
+  accessToken  String // Meta API Token
+  verifyToken  String // Webhook Verification Token
+  status       String   @default("DISCONNECTED") // CONNECTED, DISCONNECTED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Customer {
+  id            String         @id @default(uuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  waId          String // Customer's WhatsApp ID (phone number)
+  name          String?
+  notes         String?        @db.Text
+  tags          String? // Comma-separated tags
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  conversations Conversation[]
+  leads         Lead[]
+  orders        Order[]
+  aiMemory      AIMemory?
+
+  @@unique([tenantId, waId])
+}
+
+model Conversation {
+  id            String    @id @default(uuid())
+  tenantId      String
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status        String    @default("AI_ACTIVE") // AI_ACTIVE, HUMAN_TAKEOVER, CLOSED
+  lastMessageAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  messages      Message[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  waMessageId    String?      @unique // Meta Message ID
+  sender         String // CUSTOMER, AI, HUMAN
+  messageType    String       @default("TEXT") // TEXT, IMAGE, DOCUMENT, VIDEO, AUDIO, LOCATION, INTERACTIVE
+  content        String       @db.Text
+  status         String       @default("SENT") // SENT, DELIVERED, READ, FAILED
+  createdAt      DateTime     @default(now())
+}
+
+model Product {
+  id             String           @id @default(uuid())
+  tenantId       String
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  localId        String? // ID in the local database
+  name           String
+  description    String?          @db.Text
+  sku            String?
+  price          Float
+  stock          Int              @default(0)
+  categoryId     String?
+  category       Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  images         String?          @db.Text // JSON string array of URLs
+  specifications String?          @db.Text // JSON string of attributes/specs
+  offers         String?          @db.Text // JSON string details of offers
+  discount       Float            @default(0)
+  gst            Float            @default(0)
+  isAvailable    Boolean          @default(true)
+  version        Int              @default(1)
+  syncSource     String           @default("CLOUD") // CLOUD, LOCAL
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  variants       ProductVariant[]
+
+  @@unique([tenantId, localId])
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  localId   String?
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@unique([tenantId, localId])
+}
+
+model ProductVariant {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku       String?
+  name      String // e.g., "Size: M", "Color: Blue"
+  price     Float
+  stock     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ServerConnection {
+  id              String    @id @default(uuid())
+  tenantId        String    @unique
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type            String    @default("REST") // REST, GRAPHQL, MYSQL, POSTGRESQL, MSSQL, SQLITE
+  url             String
+  authType        String    @default("NONE") // NONE, API_KEY, BASIC, BEARER
+  credentials     String?   @db.Text // Encrypted credentials payload JSON
+  pollingInterval Int       @default(30) // Seconds
+  syncInterval    Int       @default(3600) // Seconds
+  timeout         Int       @default(5000) // ms
+  retryAttempts   Int       @default(3)
+  sslSettings     String?   @db.Text // JSON configuration
+  isOnline        Boolean   @default(false)
+  lastCheckedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  syncJobs        SyncJob[]
+}
+
+model SyncJob {
+  id                 String           @id @default(uuid())
+  serverConnectionId String
+  serverConnection   ServerConnection @relation(fields: [serverConnectionId], references: [id], onDelete: Cascade)
+  status             String           @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED
+  type               String // INCREMENTAL, FULL
+  startedAt          DateTime         @default(now())
+  endedAt            DateTime?
+  totalRecords       Int              @default(0)
+  updatedRecords     Int              @default(0)
+  deletedRecords     Int              @default(0)
+  failedRecords      Int              @default(0)
+  logs               SyncJobLog[]
+}
+
+model SyncJobLog {
+  id         String   @id @default(uuid())
+  syncJobId  String
+  syncJob    SyncJob  @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+  action     String // UPDATE, CREATE, DELETE, FAIL
+  entityType String // PRODUCT, CATEGORY, CUSTOMER, ORDER
+  entityId   String?
+  success    Boolean
+  errorMsg   String?  @db.Text
+  createdAt  DateTime @default(now())
+}
+
+model Lead {
+  id                String    @id @default(uuid())
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId        String
+  customer          Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  stage             String    @default("NEW") // NEW, INTERESTED, QUALIFIED, NEGOTIATION, WON, LOST
+  interestedProduct String?
+  budget            Float?
+  timeline          String?
+  leadScore         Int       @default(0)
+  summary           String?   @db.Text
+  intent            String?
+  source            String    @default("WHATSAPP")
+  assignedUserId    String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Order {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  totalAmount  Float
+  status       String   @default("PENDING") // PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+  localOrderId String? // ID on the local server database
+  syncStatus   String   @default("PENDING") // PENDING, SYNCED, FAILED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AISettings {
+  id             String   @id @default(uuid())
+  tenantId       String   @unique
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  systemPrompt   String   @db.Text
+  fallbackPrompt String   @db.Text
+  maxTokens      Int      @default(500)
+  temperature    Float    @default(0.7)
+  modelName      String   @default("grok-beta")
+  contactPhone   String?  @default("+919385811823")
+  gstRate        Float    @default(18.0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model AIMemory {
+  id          String   @id @default(uuid())
+  customerId  String   @unique
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  contextData String   @db.Text // Key value pairs or AI summaries of customer details
+  updatedAt   DateTime @updatedAt
+}
+
+model KnowledgeDocument {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  type      String   @default("FAQ") // FAQ, POLICY, MANUAL
+  vector    String?  @db.Text // Embeddings context token CSV
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type      String // SERVER_OFFLINE, SYNC_FAILED, WHATSAPP_ERROR, SYSTEM_ERROR
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  details   String?  @db.Text
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model ProductSourceConfig {
+  id                        String   @id @default(uuid())
+  tenantId                  String   @unique
+  tenant                    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  activeSource              String   @default("LOCAL_CONNECTOR") // LOCAL_CONNECTOR, EXCEL_UPLOAD, GOOGLE_SHEETS
+  googleSheetId             String?
+  googleSheetRange          String?  @default("Sheet1!A:H")
+  googleServiceAccountJson  String?  @db.Text
+  syncIntervalMinutes       Int      @default(5)
+  lastSyncAt                DateTime?
+  nextSyncAt                DateTime?
+  status                    String   @default("IDLE") // IDLE, SYNCING, ERROR
+  lastError                 String?  @db.Text
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+model Salesperson {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  phone          String
+  specialization String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId])
+}
