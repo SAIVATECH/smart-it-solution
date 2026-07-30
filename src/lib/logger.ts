@@ -1,4 +1,6 @@
 import winston from "winston";
+import fs from "fs";
+import path from "path";
 
 const levels = {
   error: 0,
@@ -10,8 +12,7 @@ const levels = {
 
 const level = () => {
   const env = process.env.NODE_ENV || "development";
-  const isDevelopment = env === "development";
-  return isDevelopment ? "debug" : "warn";
+  return env === "development" ? "debug" : "info";
 };
 
 const colors = {
@@ -32,14 +33,28 @@ const format = winston.format.combine(
   )
 );
 
-const transports = [
+const transports: winston.transport[] = [
   new winston.transports.Console(),
-  new winston.transports.File({
-    filename: "logs/error.log",
-    level: "error",
-  }),
-  new winston.transports.File({ filename: "logs/combined.log" }),
 ];
+
+// Safely attempt file logging only if the filesystem directory can be created
+try {
+  const logDir = path.join(process.cwd(), "logs");
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+  transports.push(
+    new winston.transports.File({
+      filename: path.join(logDir, "error.log"),
+      level: "error",
+    }),
+    new winston.transports.File({
+      filename: path.join(logDir, "combined.log"),
+    })
+  );
+} catch (e) {
+  // In serverless / read-only environments (e.g. Vercel), fall back to Console logging
+}
 
 export const logger = winston.createLogger({
   level: level(),
