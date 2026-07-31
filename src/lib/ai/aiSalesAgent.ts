@@ -258,6 +258,25 @@ export async function processCustomerMessage(
     const result = await response.json();
     const assistantMessage = result.choices[0]?.message;
 
+    // Track Gemini token usage
+    const promptTokens = result.usage?.prompt_tokens || Math.ceil(JSON.stringify(messages).length / 4);
+    const completionTokens = result.usage?.completion_tokens || Math.ceil(JSON.stringify(assistantMessage || {}).length / 4);
+    const totalTokens = result.usage?.total_tokens || (promptTokens + completionTokens);
+
+    await prisma.auditLog.create({
+      data: {
+        tenantId,
+        action: "AI_TOKEN_USAGE",
+        details: JSON.stringify({
+          model: selectedModel,
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          timestamp: new Date().toISOString(),
+        }),
+      },
+    }).catch((e) => logger.warn(`Failed to write token usage log: ${e.message}`));
+
     if (assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) {
       const toolCall: ToolCall = assistantMessage.tool_calls[0];
       const functionName = toolCall.function.name;

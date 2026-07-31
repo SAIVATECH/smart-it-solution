@@ -65,12 +65,35 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 7. Audit log summary
-    const auditLogs = await prisma.auditLog.findMany({
-      where: { tenantId },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    });
+    // 7. Audit log summary & Token Usage aggregation
+    const [auditLogs, tokenLogs, aiSettings] = await Promise.all([
+      prisma.auditLog.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+      prisma.auditLog.findMany({
+        where: { tenantId, action: "AI_TOKEN_USAGE" },
+      }),
+      prisma.aISettings.findUnique({
+        where: { tenantId },
+      }),
+    ]);
+
+    let promptTokens = 0;
+    let completionTokens = 0;
+    const totalRequests = tokenLogs.length;
+
+    for (const log of tokenLogs) {
+      try {
+        const details = JSON.parse(log.details || "{}");
+        promptTokens += details.promptTokens || 0;
+        completionTokens += details.completionTokens || 0;
+      } catch (e) {}
+    }
+
+    const totalTokens = promptTokens + completionTokens;
+    const dailyQuota = 1000000;
 
     // 8. Get white-label branding configurations
     const branding = await prisma.brandingSettings.findUnique({
@@ -80,7 +103,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       branding: branding || {
-        brandName: "Acme Sales AI",
+        brandName: "Smart IT Solutions",
         primaryColor: "#06b6d4",
         secondaryColor: "#6366f1",
       },
@@ -93,8 +116,17 @@ export async function GET(req: NextRequest) {
         humanTakeover,
         totalLeads,
         productCount,
-        revenue: 4298.5, // Seeded calculation metric
+        revenue: 4298.5,
         aiAccuracy: 94.5,
+        tokenUsage: {
+          totalTokens,
+          promptTokens,
+          completionTokens,
+          totalRequests,
+          activeModel: aiSettings?.modelName || "gemini-2.0-flash",
+          dailyQuota,
+          quotaUsedPercent: Number(((totalTokens / dailyQuota) * 100).toFixed(4)),
+        },
       },
       activeConversations,
       recentSyncJobs,

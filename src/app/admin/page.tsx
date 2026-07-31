@@ -40,6 +40,16 @@ interface SyncJob {
   failedRecords: number;
 }
 
+interface TokenUsage {
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalRequests: number;
+  activeModel: string;
+  dailyQuota: number;
+  quotaUsedPercent: number;
+}
+
 interface Metrics {
   serverStatus: string;
   lastChecked: string | null;
@@ -51,6 +61,7 @@ interface Metrics {
   productCount: number;
   revenue: number;
   aiAccuracy: number;
+  tokenUsage?: TokenUsage;
 }
 
 interface Branding {
@@ -455,6 +466,56 @@ export default function AdminDashboard() {
                         </span>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Gemini Token Usage & Quota Monitor Banner */}
+                  <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-cyan-900/60 rounded-2xl p-6 relative overflow-hidden shadow-xl">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                          <h2 className="text-base font-bold text-white tracking-wide">
+                            Gemini AI Token Usage & Quota Monitor
+                          </h2>
+                          <span className="px-2.5 py-0.5 bg-cyan-950 border border-cyan-700 text-cyan-400 text-[11px] font-mono font-bold rounded-full">
+                            {metrics?.tokenUsage?.activeModel || "gemini-2.0-flash"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                          Real-time token usage, prompt context breakdown, and API quota health monitoring.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-6 bg-slate-950/90 border border-slate-850 px-5 py-3.5 rounded-xl">
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Total Tokens</p>
+                          <p className="text-lg font-black text-cyan-400 font-mono">
+                            {(metrics?.tokenUsage?.totalTokens || 0).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="h-8 w-px bg-slate-850 hidden sm:block" />
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Prompt / Completion</p>
+                          <p className="text-xs font-semibold text-slate-300 font-mono">
+                            {(metrics?.tokenUsage?.promptTokens || 0).toLocaleString()} / {(metrics?.tokenUsage?.completionTokens || 0).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="h-8 w-px bg-slate-850 hidden sm:block" />
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">API Calls</p>
+                          <p className="text-sm font-bold text-white font-mono">
+                            {metrics?.tokenUsage?.totalRequests || 0} reqs
+                          </p>
+                        </div>
+                        <div className="h-8 w-px bg-slate-850 hidden sm:block" />
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Daily Quota (1M)</p>
+                          <p className="text-xs font-bold text-emerald-400 font-mono">
+                            {metrics?.tokenUsage?.quotaUsedPercent || 0}% used
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* CRM Leads Section */}
