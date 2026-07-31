@@ -150,6 +150,41 @@ export async function POST(req: NextRequest) {
       data: { lastMessageAt: new Date() },
     });
 
+    // Detect Stop / Opt-out request to pause automated messages
+    const lowerText = bodyText.trim().toLowerCase();
+    const isStopCommand = ["stop", "unsubscribe", "dont message", "don't message", "stop message", "stop follow up", "pause"].some(
+      (word) => lowerText === word || lowerText.startsWith(word)
+    );
+
+    if (isStopCommand) {
+      logger.info(`Customer ${fromPhone} requested Stop. Pausing automated messages (HUMAN_TAKEOVER).`);
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { status: "HUMAN_TAKEOVER", lastMessageAt: new Date() },
+      });
+
+      const stopReply = "Understood. We have paused automated messages for your account. If you need assistance with laptops, CCTV, or printers in the future, a human representative will follow up with you. Have a great day!";
+
+      await sendWhatsAppTextMessage({
+        accessToken: waAccount.accessToken,
+        phoneId: waAccount.phoneId,
+        recipientPhone: fromPhone,
+        messageText: stopReply,
+      });
+
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          sender: "AI",
+          messageType: "TEXT",
+          content: stopReply,
+          status: "SENT",
+        },
+      });
+
+      return NextResponse.json({ status: "opt_out_handled" });
+    }
+
     // 5. If AI assistant is active, generate and send response
     if (conversation.status === "AI_ACTIVE") {
       logger.info(`AI active for conversation ${conversation.id}. Generating reply.`);

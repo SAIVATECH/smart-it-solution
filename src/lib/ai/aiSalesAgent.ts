@@ -145,6 +145,18 @@ export async function processCustomerMessage(
   // 3. Perform RAG injection
   const kbContext = await searchKnowledgeBase(tenantId, messageContent);
 
+  // De-duplicate welcome greetings if welcome header was already sent in conversation history
+  const isSimpleGreeting = ["hello", "hi", "hey", "good morning", "good afternoon"].includes(messageContent.trim().toLowerCase());
+  if (isSimpleGreeting) {
+    const hasSentWelcome = historyMessages.some(
+      (m) => (m.sender === "ASSISTANT" || m.sender === "AI") && m.content.includes("Smart IT Solutions")
+    );
+    if (hasSentWelcome) {
+      logger.info(`Welcome greeting already sent in conversation ${customerId}. Returning short greeting response.`);
+      return "Hi! How can I assist you with your inquiry today?";
+    }
+  }
+
   // 4. Build message structures
   const messages: any[] = [
     {
