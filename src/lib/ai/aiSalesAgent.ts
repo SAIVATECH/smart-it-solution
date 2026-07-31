@@ -379,6 +379,34 @@ export async function processCustomerMessage(
     return assistantMessage?.content || "Hello! Welcome to Smart IT Solutions - No.1 In Laptops service | Computer Dealer | Printer Dealer | CCTV Installation | Gaming PC. How can I assist you today?";
   } catch (error: any) {
     logger.error(`AI Sales Executive error processing message: ${error.message}`);
+
+    // SMART PRODUCT SEARCH FALLBACK: If LLM fails (due to 429 rate limits or network issues),
+    // perform a local catalog search directly for the user's product query
+    try {
+      const searchTerms = messageContent.replace(/price|\?|how much|cost|show|types|all|want/gi, "").trim();
+      if (searchTerms.length >= 2) {
+        const products = await getProductCatalog(tenantId, searchTerms);
+        if (products.length > 0) {
+          logger.info(`Smart fallback product search found ${products.length} products for query: "${searchTerms}"`);
+          const formattedProducts = JSON.stringify(
+            products.map((p) => ({
+              id: p.id,
+              name: p.name,
+              sku: p.sku,
+              price: p.price,
+              stock: p.stock,
+              discount: p.discount,
+              description: p.description,
+              specifications: p.specifications,
+            }))
+          );
+          return formatFallbackProductsReply(formattedProducts, currentGstRate);
+        }
+      }
+    } catch (fallbackErr: any) {
+      logger.warn(`Smart fallback product search failed: ${fallbackErr.message}`);
+    }
+
     return aiSettings?.fallbackPrompt || "I am processing your request. A sales representative will join soon.";
   }
 }
