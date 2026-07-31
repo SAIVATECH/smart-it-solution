@@ -113,10 +113,11 @@ export async function processCustomerMessage(
   11. SERVICE ROUTING SPECIALIZATION: When a client requests more information about a specific service (such as CCTV installation, networking, biometrics, etc.), or if they ask to contact a human agent, you must check the REGISTERED SALESPERSONS directory. If a salesperson is registered for that service specialization, you MUST display and send that specific salesperson's contact details (Name and Phone Number) to the customer as the warm handover. If no representative matches that specialization, fallback to the main sales contact number: ${salesContactNumber}.
   12. HUMAN GREETINGS RESPONSE: If the customer sends a simple greeting like "hello", "HI", "hey", or "good morning" without asking about a specific product or service, you MUST respond immediately with a warm welcome: "Hello! Welcome to Smart IT Solutions - No.1 In Laptops service | Computer Dealer | Printer Dealer | CCTV Installation | Gaming PC. How can I assist you today?". Do NOT call the searchProducts tool.`;
 
-  let modelName = aiSettings?.modelName || "gemini-3.6-flash";
+  let modelName = aiSettings?.modelName || "gemini-2.0-flash";
   if (!modelName.includes("gemini")) {
-    modelName = "gemini-3.6-flash";
+    modelName = "gemini-2.0-flash";
   }
+  const candidateModels = Array.from(new Set([modelName, "gemini-2.0-flash", "gemini-1.5-flash"]));
   const temperature = aiSettings?.temperature ?? 0.3;
 
   // 2. Fetch Customer Context and conversation history
@@ -209,42 +210,49 @@ export async function processCustomerMessage(
   ];
 
   try {
-    const payload = {
-      model: modelName,
-      messages,
-      temperature,
-      tools,
-      tool_choice: "auto",
-    };
-
     let response: Response | null = null;
-    let attempts = 3;
-    for (let i = 0; i < attempts; i++) {
-      try {
-        logger.info(`Sending request to AI API using model: ${modelName} (Attempt ${i + 1}/${attempts})`);
-        response = await fetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify(payload),
-        });
-        if (response.ok) {
-          break;
-        } else {
-          const errText = await response.text();
-          logger.warn(`Gemini API responded with error status ${response.status} (Attempt ${i + 1}/${attempts}): ${errText}`);
+    let selectedModel = modelName;
+
+    for (const activeModel of candidateModels) {
+      selectedModel = activeModel;
+      const payload = {
+        model: activeModel,
+        messages,
+        temperature,
+        tools,
+        tool_choice: "auto",
+      };
+
+      for (let i = 0; i < 2; i++) {
+        try {
+          logger.info(`Sending request to AI API using model: ${activeModel} (Attempt ${i + 1}/2)`);
+          response = await fetch(apiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(payload),
+          });
+          if (response.ok) {
+            break;
+          } else {
+            const errText = await response.text();
+            logger.warn(`Gemini API responded with error status ${response.status} using ${activeModel}: ${errText}`);
+            if (response.status === 429) {
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+          }
+        } catch (err: any) {
+          logger.warn(`Fetch to Gemini API failed for model ${activeModel}: ${err.message}`);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
-      } catch (err: any) {
-        logger.warn(`Fetch to Gemini API failed (Attempt ${i + 1}/${attempts}): ${err.message}`);
-        if (i === attempts - 1) throw err;
-        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
+      if (response && response.ok) break;
     }
 
     if (!response || !response.ok) {
-      throw new Error(`Gemini API request failed after all attempts.`);
+      throw new Error(`Gemini API request failed after trying candidate models.`);
     }
 
     const result = await response.json();
@@ -303,12 +311,11 @@ export async function processCustomerMessage(
       ];
 
       let secondRes: Response | null = null;
-      for (let i = 0; i < attempts; i++) {
-        try {
-          logger.info(`Sending follow-up request to AI API (Attempt ${i + 1}/${attempts})`);
-            const adaptedMsgs = secondResMessageAdapt(followUpMessages);
-            logger.info("Follow-up adapted payload: " + JSON.stringify(adaptedMsgs, null, 2));
-
+      for (const followUpModel of candidateModels) {
+        const adaptedMsgs = secondResMessageAdapt(followUpMessages);
+        for (let i = 0; i < 2; i++) {
+          try {
+            logger.info(`Sending follow-up request to AI API using model: ${followUpModel}`);
             secondRes = await fetch(apiUrl, {
               method: "POST",
               headers: {
@@ -316,33 +323,38 @@ export async function processCustomerMessage(
                 Authorization: `Bearer ${apiKey}`,
               },
               body: JSON.stringify({
-                model: modelName,
+                model: followUpModel,
                 messages: adaptedMsgs,
                 temperature,
                 tools,
                 tool_choice: "none",
               }),
             });
-          if (secondRes.ok) {
-            break;
-          } else {
+            if (secondRes.ok) break;
             const secondErrText = await secondRes.text();
-            logger.warn(`Gemini follow-up API responded with error status ${secondRes.status} (Attempt ${i + 1}/${attempts}): ${secondErrText}`);
+            logger.warn(`Gemini follow-up API error status ${secondRes.status} on ${followUpModel}: ${secondErrText}`);
+            if (secondRes.status === 429) {
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+          } catch (err: any) {
+            logger.warn(`Fetch for Gemini follow-up failed on model ${followUpModel}: ${err.message}`);
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
-        } catch (err: any) {
-          logger.warn(`Fetch for Gemini follow-up failed (Attempt ${i + 1}/${attempts}): ${err.message}`);
-          if (i === attempts - 1) throw err;
-          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
+        if (secondRes && secondRes.ok) break;
       }
 
-      if (!secondRes || !secondRes.ok) {
-        throw new Error(`Gemini follow-up request failed after all attempts.`);
+      if (secondRes && secondRes.ok) {
+        const secondResult = await secondRes.json();
+        logger.info(`Gemini follow-up result payload: ${JSON.stringify(secondResult)}`);
+        return secondResult.choices[0]?.message?.content || formatFallbackProductsReply(toolResponse, currentGstRate);
       }
 
-      const secondResult = await secondRes.json();
-      logger.info(`Gemini follow-up result payload: ${JSON.stringify(secondResult)}`);
-      return secondResult.choices[0]?.message?.content || "I will check the product details for you.";
+      // Fallback: If follow-up hit rate limits but we have search products, format directly
+      if (functionName === "searchProducts") {
+        logger.info("Using deterministic fallback formatter for search products due to AI API rate limits");
+        return formatFallbackProductsReply(toolResponse, currentGstRate);
+      }
     }
 
     return assistantMessage?.content || "Hello! Welcome to Smart IT Solutions - No.1 In Laptops service | Computer Dealer | Printer Dealer | CCTV Installation | Gaming PC. How can I assist you today?";
@@ -395,4 +407,43 @@ function secondResMessageAdapt(messages: any[]): any[] {
     }
     return msg;
   });
+}
+
+function formatFallbackProductsReply(productsJson: string, gstRate: number = 18): string {
+  try {
+    const products = JSON.parse(productsJson);
+    if (!Array.isArray(products) || products.length === 0) {
+      return "Unfortunately, we do not carry this item in our catalog at the moment. Please contact our sales team for assistance.";
+    }
+
+    let reply = "Here are the available options matching your request:\n\n";
+    for (const p of products) {
+      let specs: any = {};
+      try {
+        specs = typeof p.specifications === "string" ? JSON.parse(p.specifications) : (p.specifications || {});
+      } catch (e) {}
+
+      const pdcBase = Number(specs.PDC || p.price || 0);
+      const cdcBase = Number(specs.CDC || 0);
+
+      reply += `### ${p.name}\n`;
+      if (pdcBase > 0) {
+        const gstPdc = (pdcBase * gstRate) / 100;
+        const nettPdc = pdcBase + gstPdc;
+        reply += `- **PDC (Base Price)**: ₹${pdcBase.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n`;
+        reply += `- **GST (${gstRate}%)**: ₹${gstPdc.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n`;
+        reply += `- **NETT Price**: ₹${nettPdc.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n\n`;
+      }
+      if (cdcBase > 0) {
+        const gstCdc = (cdcBase * gstRate) / 100;
+        const nettCdc = cdcBase + gstCdc;
+        reply += `- **CDC (Base Price)**: ₹${cdcBase.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n`;
+        reply += `- **GST (${gstRate}%)**: ₹${gstCdc.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n`;
+        reply += `- **NETT Price**: ₹${nettCdc.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n\n`;
+      }
+    }
+    return reply.trim();
+  } catch (e) {
+    return "Here are the product details you requested. Please contact our sales agent at +919385811823 for full pricing details.";
+  }
 }
