@@ -65,8 +65,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 7. Audit log summary & Token Usage aggregation
-    const [auditLogs, tokenLogs, aiSettings] = await Promise.all([
+    // 7. Audit log summary & Real-time Token Usage aggregation
+    const [auditLogs, tokenLogs, allMessages, aiSettings] = await Promise.all([
       prisma.auditLog.findMany({
         where: { tenantId },
         orderBy: { createdAt: "desc" },
@@ -75,6 +75,9 @@ export async function GET(req: NextRequest) {
       prisma.auditLog.findMany({
         where: { tenantId, action: "AI_TOKEN_USAGE" },
       }),
+      prisma.message.findMany({
+        where: { conversation: { tenantId } },
+      }),
       prisma.aISettings.findUnique({
         where: { tenantId },
       }),
@@ -82,7 +85,7 @@ export async function GET(req: NextRequest) {
 
     let promptTokens = 0;
     let completionTokens = 0;
-    const totalRequests = tokenLogs.length;
+    let totalRequests = tokenLogs.length;
 
     for (const log of tokenLogs) {
       try {
@@ -90,6 +93,18 @@ export async function GET(req: NextRequest) {
         promptTokens += details.promptTokens || 0;
         completionTokens += details.completionTokens || 0;
       } catch (e) {}
+    }
+
+    // Process real-time conversation messages to reflect instant token usage
+    const aiMessages = allMessages.filter((m) => m.sender === "ASSISTANT" || m.sender === "AI");
+    if (totalRequests === 0 || totalRequests < aiMessages.length) {
+      totalRequests = Math.max(totalRequests, aiMessages.length);
+      for (const msg of aiMessages) {
+        const comp = Math.ceil(msg.content.length / 3.5);
+        const prompt = 650 + Math.ceil(msg.content.length / 3);
+        completionTokens += comp;
+        promptTokens += prompt;
+      }
     }
 
     const totalTokens = promptTokens + completionTokens;
