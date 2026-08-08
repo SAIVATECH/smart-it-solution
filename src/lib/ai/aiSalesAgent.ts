@@ -161,8 +161,8 @@ export async function processCustomerMessage(
   // 3. Fast Direct Human Sales Pattern Matcher (Direct Rule Engine with/without AI)
   const lowerMsg = messageContent.trim().toLowerCase();
   
-  // Known brand terms
-  const knownBrands = ["cp plus", "cpplus", "cp pl", "dahua", "hikvision", "ezviz", "qubo", "sandisk", "hp", "dell", "lenovo", "zebronics", "tp link", "dlink"];
+  // Known brand terms (including generic brand responses like "any brand", "anything")
+  const knownBrands = ["cp plus", "cpplus", "cp pl", "dahua", "hikvision", "ezviz", "qubo", "sandisk", "hp", "dell", "lenovo", "zebronics", "tp link", "dlink", "any brand", "any", "anything", "all brand", "all"];
   const hasBrand = knownBrands.some(b => lowerMsg.includes(b));
   
   // Product inquiry keywords
@@ -177,38 +177,40 @@ export async function processCustomerMessage(
     }
   }
 
-  // Pattern Rule B: Brand specified -> Direct concise DB price response (e.g. 1250RS)
+  // Pattern Rule B: Brand specified (or "any brand") -> Direct concise DB price response
   if (hasBrand) {
-    let queryContext = messageContent;
-    const lastUserProductMsg = historyMessages.filter(m => m.sender === "CUSTOMER" && m.content !== messageContent).slice(-1)[0]?.content;
-    if (lastUserProductMsg && ["camera", "dvr", "nvr", "2mp", "5mp", "4mp", "dual", "bullet", "dome"].some(k => lastUserProductMsg.toLowerCase().includes(k))) {
-      queryContext = `${lastUserProductMsg} ${messageContent}`;
+    let queryContext = messageContent.replace(/any brand|any|anything|all brand|all/gi, "").trim();
+    if (queryContext.length < 2) {
+      const lastUserProductMsg = historyMessages.filter(m => m.sender === "CUSTOMER" && m.content !== messageContent).slice(-1)[0]?.content || "";
+      queryContext = lastUserProductMsg.replace(/price|\?|how much|cost|show|types|want/gi, "").trim();
     }
 
-    const matchedProducts = await getProductCatalog(tenantId, queryContext);
-    if (matchedProducts.length > 0) {
-      logger.info(`Fast Direct Match: Found ${matchedProducts.length} items for "${queryContext}".`);
-      if (matchedProducts.length === 1) {
-        const p = matchedProducts[0];
-        let specs: any = {};
-        try {
-          specs = typeof p.specifications === "string" ? JSON.parse(p.specifications) : (p.specifications || {});
-        } catch (e) {}
-        const basePrice = Number(specs.CDC || specs.PDC || p.price || 0);
-        const finalPrice = Math.round(basePrice * (1 + currentGstRate / 100));
-        return `${finalPrice}RS`;
-      } else {
-        let reply = "";
-        for (const p of matchedProducts.slice(0, 3)) {
+    if (queryContext.length >= 2) {
+      const matchedProducts = await getProductCatalog(tenantId, queryContext);
+      if (matchedProducts.length > 0) {
+        logger.info(`Fast Direct Match: Found ${matchedProducts.length} items for "${queryContext}".`);
+        if (matchedProducts.length === 1) {
+          const p = matchedProducts[0];
           let specs: any = {};
           try {
             specs = typeof p.specifications === "string" ? JSON.parse(p.specifications) : (p.specifications || {});
           } catch (e) {}
           const basePrice = Number(specs.CDC || specs.PDC || p.price || 0);
           const finalPrice = Math.round(basePrice * (1 + currentGstRate / 100));
-          reply += `*${p.name}*: ${finalPrice}RS\n`;
+          return `${finalPrice}RS`;
+        } else {
+          let reply = "";
+          for (const p of matchedProducts.slice(0, 3)) {
+            let specs: any = {};
+            try {
+              specs = typeof p.specifications === "string" ? JSON.parse(p.specifications) : (p.specifications || {});
+            } catch (e) {}
+            const basePrice = Number(specs.CDC || specs.PDC || p.price || 0);
+            const finalPrice = Math.round(basePrice * (1 + currentGstRate / 100));
+            reply += `*${p.name}*: ${finalPrice}RS\n`;
+          }
+          return reply.trim();
         }
-        return reply.trim();
       }
     }
   }
@@ -448,10 +450,24 @@ export async function processCustomerMessage(
   } catch (error: any) {
     logger.error(`AI Sales Executive error processing message: ${error.message}`);
 
-    // SMART PRODUCT SEARCH FALLBACK: If LLM fails (due to 429 rate limits or network issues),
-    // perform a local catalog search directly for the user's product query
+    // SMART DIRECT DATABASE FALLBACK: If LLM fails (due to 429 rate limits, network issues, or API errors),
+    // perform a local catalog search directly for the user's current or previous product query
     try {
-      const searchTerms = messageContent.replace(/price|\?|how much|cost|show|types|all|want/gi, "").trim();
+      let searchTerms = messageContent.replace(/any brand|any|anything|all brand|all|price|\?|how much|cost|show|types|want/gi, "").trim();
+      
+      // If current message has no search terms (e.g. user said "any brand"), check previous user messages in history!
+      if (searchTerms.length < 2) {
+        for (const msg of [...historyMessages].reverse()) {
+          if (msg.sender === "CUSTOMER") {
+            const cleaned = msg.content.replace(/any brand|any|anything|all brand|all|price|\?|how much|cost|show|types|want/gi, "").trim();
+            if (cleaned.length >= 2) {
+              searchTerms = cleaned;
+              break;
+            }
+          }
+        }
+      }
+
       if (searchTerms.length >= 2) {
         const products = await getProductCatalog(tenantId, searchTerms);
         if (products.length > 0) {
@@ -475,7 +491,7 @@ export async function processCustomerMessage(
       logger.warn(`Smart fallback product search failed: ${fallbackErr.message}`);
     }
 
-    return aiSettings?.fallbackPrompt || "I am processing your request. A sales representative will join soon.";
+    return "For instant assistance and live product pricing, please contact our sales executive at +919385811823.";
   }
 }
 
