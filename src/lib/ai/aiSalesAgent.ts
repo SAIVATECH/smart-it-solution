@@ -111,7 +111,8 @@ export async function processCustomerMessage(
   9. ZERO PRICE ITEMS: If a product is returned in your search results but has a price of 0, state that the product is available in our store, but explain that the price is not listed in our database records at the moment. Offer a warm handover to the sales contact number: ${salesContactNumber} so they can check the exact price. Do NOT say we do not carry the product.
   10. STORAGE PRODUCTS REQUIREMENT SHIELD: If a customer inquires about or asks for an SD Card, a SanDisk product, or a Pen Drive, you MUST NOT immediately display or quote pricing. Instead, you must first ask clarification questions to understand their requirements (capacity needed, speed preferences, device compatibility, use case, and budget). Present the suitable models and options from your search results to educate them first, and recommend the best fit. Only after explaining the best-fit options can you display the corresponding billing or price details.
   11. SERVICE ROUTING SPECIALIZATION: When a client requests more information about a specific service (such as CCTV installation, networking, biometrics, etc.), or if they ask to contact a human agent, you must check the REGISTERED SALESPERSONS directory. If a salesperson is registered for that service specialization, you MUST display and send that specific salesperson's contact details (Name and Phone Number) to the customer as the warm handover. If no representative matches that specialization, fallback to the main sales contact number: ${salesContactNumber}.
-  12. HUMAN GREETINGS RESPONSE: If the customer sends a simple greeting like "hello", "HI", "hey", or "good morning" without asking about a specific product or service, you MUST respond immediately with a warm welcome: "Hello! Welcome to Smart IT Solutions - No.1 In Laptops service | Computer Dealer | Printer Dealer | CCTV Installation | Gaming PC. How can I assist you today?". Do NOT call the searchProducts tool.`;
+  12. HUMAN GREETINGS RESPONSE: If the customer sends a simple greeting like "hello", "HI", "hey", or "good morning" without asking about a specific product or service, you MUST respond immediately with a warm welcome: "Hello! Welcome to Smart IT Solutions - No.1 In Laptops service | Computer Dealer | Printer Dealer | CCTV Installation | Gaming PC. How can I assist you today?". Do NOT call the searchProducts tool.
+  13. CONCISE WHATSAPP HUMAN SALES CHAT STYLE: If the customer asks for a product price or model details without specifying the brand (e.g. asking for '2mp dual colour price' or '4ch NVR'), first ask: "BRAND ?" or "Which brand do you prefer? CP Plus, Dahua, or Hikvision?". Keep price replies short, direct, and human (e.g. "*CP Plus 2MP Dual Light Camera*: 1250RS").`;
 
   let modelName = aiSettings?.modelName || "gemini-2.0-flash";
   if (!modelName.includes("gemini")) {
@@ -154,6 +155,61 @@ export async function processCustomerMessage(
     if (hasSentWelcome) {
       logger.info(`Welcome greeting already sent in conversation ${customerId}. Returning short greeting response.`);
       return "Hi! How can I assist you with your inquiry today?";
+    }
+  }
+
+  // 3. Fast Direct Human Sales Pattern Matcher (Direct Rule Engine with/without AI)
+  const lowerMsg = messageContent.trim().toLowerCase();
+  
+  // Known brand terms
+  const knownBrands = ["cp plus", "cpplus", "cp pl", "dahua", "hikvision", "ezviz", "qubo", "sandisk", "hp", "dell", "lenovo", "zebronics", "tp link", "dlink"];
+  const hasBrand = knownBrands.some(b => lowerMsg.includes(b));
+  
+  // Product inquiry keywords
+  const isProductInquiry = ["camera", "dvr", "nvr", "dual colour", "dual color", "dual light", "2mp", "5mp", "4mp", "router", "hdd", "rack", "poe", "price", "bullet"].some(k => lowerMsg.includes(k));
+
+  // Pattern Rule A: Product inquiry WITHOUT brand specification -> Ask BRAND ?
+  if (isProductInquiry && !hasBrand) {
+    const lastAssistantMsg = historyMessages.filter(m => m.sender === "ASSISTANT" || m.sender === "AI").slice(-1)[0]?.content || "";
+    if (!lastAssistantMsg.toUpperCase().includes("BRAND")) {
+      logger.info(`Fast Direct Match: Brand missing for query "${messageContent}". Requesting BRAND.`);
+      return "BRAND ?";
+    }
+  }
+
+  // Pattern Rule B: Brand specified -> Direct concise DB price response (e.g. 1250RS)
+  if (hasBrand) {
+    let queryContext = messageContent;
+    const lastUserProductMsg = historyMessages.filter(m => m.sender === "CUSTOMER" && m.content !== messageContent).slice(-1)[0]?.content;
+    if (lastUserProductMsg && ["camera", "dvr", "nvr", "2mp", "5mp", "4mp", "dual", "bullet", "dome"].some(k => lastUserProductMsg.toLowerCase().includes(k))) {
+      queryContext = `${lastUserProductMsg} ${messageContent}`;
+    }
+
+    const matchedProducts = await getProductCatalog(tenantId, queryContext);
+    if (matchedProducts.length > 0) {
+      logger.info(`Fast Direct Match: Found ${matchedProducts.length} items for "${queryContext}".`);
+      if (matchedProducts.length === 1) {
+        const p = matchedProducts[0];
+        let specs: any = {};
+        try {
+          specs = typeof p.specifications === "string" ? JSON.parse(p.specifications) : (p.specifications || {});
+        } catch (e) {}
+        const basePrice = Number(specs.CDC || specs.PDC || p.price || 0);
+        const finalPrice = Math.round(basePrice * (1 + currentGstRate / 100));
+        return `${finalPrice}RS`;
+      } else {
+        let reply = "";
+        for (const p of matchedProducts.slice(0, 3)) {
+          let specs: any = {};
+          try {
+            specs = typeof p.specifications === "string" ? JSON.parse(p.specifications) : (p.specifications || {});
+          } catch (e) {}
+          const basePrice = Number(specs.CDC || specs.PDC || p.price || 0);
+          const finalPrice = Math.round(basePrice * (1 + currentGstRate / 100));
+          reply += `*${p.name}*: ${finalPrice}RS\n`;
+        }
+        return reply.trim();
+      }
     }
   }
 
