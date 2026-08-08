@@ -120,6 +120,75 @@ export default function AdminDashboard() {
   // Products Database state
   const [products, setProducts] = useState<any[]>([]);
 
+  // AI Provider & Key states
+  const [aiProvider, setAiProvider] = useState("GEMINI");
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [aiBaseUrl, setAiBaseUrl] = useState("");
+  const [aiModelName, setAiModelName] = useState("gemini-2.0-flash");
+  const [aiTestResult, setAiTestResult] = useState<string | null>(null);
+  const [testingKey, setTestingKey] = useState(false);
+
+  const saveAISettings = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/admin/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
+        },
+        body: JSON.stringify({
+          action: "UPDATE_AI_SETTINGS",
+          aiProvider,
+          apiKey: aiApiKey,
+          baseUrl: aiBaseUrl,
+          modelName: aiModelName,
+          contactPhone,
+          gstRate,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("AI Provider & API Key Settings saved successfully!");
+        fetchSourceConfig();
+      } else {
+        alert(`Error saving AI settings: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(`Network error: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleTestAIKey = async () => {
+    setTestingKey(true);
+    setAiTestResult("Connecting to provider API...");
+    try {
+      const res = await fetch("/api/admin/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
+        },
+        body: JSON.stringify({
+          action: "TEST_AI_KEY",
+          aiProvider,
+          apiKey: aiApiKey,
+          baseUrl: aiBaseUrl,
+          modelName: aiModelName,
+        }),
+      });
+      const data = await res.json();
+      setAiTestResult(data.message || (data.success ? "✅ Connection Successful!" : "❌ Connection Failed."));
+    } catch (err: any) {
+      setAiTestResult(`❌ Connection Test Failed: ${err.message}`);
+    } finally {
+      setTestingKey(false);
+    }
+  };
+
   const fetchDashboardData = async () => {
     try {
       const res = await fetch("/api/admin/dashboard", {
@@ -167,6 +236,10 @@ export default function AdminDashboard() {
         if (data.aiSettings) {
           setContactPhone(data.aiSettings.contactPhone || "+919385811823");
           setGstRate(data.aiSettings.gstRate ?? 18.0);
+          setAiProvider(data.aiSettings.aiProvider || "GEMINI");
+          setAiApiKey(data.aiSettings.apiKey || "");
+          setAiBaseUrl(data.aiSettings.baseUrl || "");
+          setAiModelName(data.aiSettings.modelName || "gemini-2.0-flash");
         }
       }
     } catch (e) {
@@ -977,6 +1050,120 @@ export default function AdminDashboard() {
                         Save Active Source
                       </button>
                     </div>
+                  </div>
+
+                  {/* Manual AI Provider & API Key Configuration Card */}
+                  <div className="bg-slate-900/30 border border-slate-850 rounded-2xl p-6 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold">Manual AI Provider & API Key Configuration</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Select your preferred AI Provider (OpenAI, Gemini, Claude, Groq, Grok, Perplexity) and manually enter your API Key.
+                        </p>
+                      </div>
+                      <span className="px-3 py-1 bg-cyan-950 border border-cyan-800 text-cyan-400 text-xs font-mono font-bold rounded-full">
+                        Active Provider: {aiProvider}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Provider Selector */}
+                      <div className="space-y-1">
+                        <label className="block text-xs text-slate-400">Select AI Provider</label>
+                        <select
+                          value={aiProvider}
+                          onChange={(e) => {
+                            const p = e.target.value;
+                            setAiProvider(p);
+                            if (p === "OPENAI") setAiModelName("gpt-4o-mini");
+                            else if (p === "GROQ") setAiModelName("llama-3.3-70b-versatile");
+                            else if (p === "CLAUDE") setAiModelName("claude-3-5-sonnet-20241022");
+                            else if (p === "GROK") setAiModelName("grok-2-latest");
+                            else if (p === "PERPLEXITY") setAiModelName("sonar");
+                            else setAiModelName("gemini-2.0-flash");
+                          }}
+                          className="w-full bg-slate-900 border border-slate-850 px-4 py-2.5 rounded-xl text-sm text-white outline-none"
+                        >
+                          <option value="GEMINI">Google Gemini (Gemini 2.0 Flash / 1.5 Pro)</option>
+                          <option value="OPENAI">OpenAI ChatGPT (GPT-4o / GPT-4o-mini)</option>
+                          <option value="CLAUDE">Anthropic Claude (Claude 3.5 Sonnet / Haiku)</option>
+                          <option value="GROQ">Groq AI (Llama 3.3 70B / DeepSeek R1)</option>
+                          <option value="GROK">xAI Grok (Grok-2 / Grok-beta)</option>
+                          <option value="PERPLEXITY">Perplexity AI (Sonar / Sonar Pro)</option>
+                        </select>
+                      </div>
+
+                      {/* Model Name */}
+                      <div className="space-y-1">
+                        <label className="block text-xs text-slate-400">Model Identifier</label>
+                        <input
+                          type="text"
+                          value={aiModelName}
+                          onChange={(e) => setAiModelName(e.target.value)}
+                          placeholder="e.g. gemini-2.0-flash, gpt-4o-mini, llama-3.3-70b-versatile"
+                          className="w-full bg-slate-900 border border-slate-850 px-4 py-2.5 rounded-xl text-sm text-white font-mono outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* API Key Input */}
+                    <div className="space-y-2">
+                      <label className="block text-xs text-slate-400">Manual API Key for {aiProvider}</label>
+                      <div className="flex gap-3">
+                        <div className="relative flex-1">
+                          <input
+                            type={showApiKey ? "text" : "password"}
+                            value={aiApiKey}
+                            onChange={(e) => setAiApiKey(e.target.value)}
+                            placeholder={`Paste your ${aiProvider} API Key here...`}
+                            className="w-full bg-slate-900 border border-slate-850 px-4 py-2.5 rounded-xl text-sm font-mono text-cyan-300 outline-none pr-16"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowApiKey(!showApiKey)}
+                            className="absolute right-3 top-2.5 text-slate-400 hover:text-white text-xs"
+                          >
+                            {showApiKey ? "🙈 Hide" : "👁️ Show"}
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleTestAIKey}
+                          disabled={testingKey}
+                          className="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-white font-semibold text-xs rounded-xl border border-slate-700 cursor-pointer transition-all disabled:opacity-50"
+                        >
+                          {testingKey ? "Testing..." : "⚡ Test Key Connection"}
+                        </button>
+                      </div>
+                      {aiTestResult && (
+                        <p className={`text-xs font-mono mt-1 ${aiTestResult.includes("✅") ? "text-emerald-400" : "text-amber-400"}`}>
+                          {aiTestResult}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Custom Base URL */}
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">Custom Base API URL (Optional Override)</label>
+                      <input
+                        type="text"
+                        value={aiBaseUrl}
+                        onChange={(e) => setAiBaseUrl(e.target.value)}
+                        placeholder="e.g. https://api.openai.com/v1/chat/completions (leave blank for default)"
+                        className="w-full bg-slate-900 border border-slate-850 px-4 py-2.5 rounded-xl text-xs font-mono text-slate-400 outline-none"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={saveAISettings}
+                      style={{ backgroundColor: primaryThemeColor, color: "#000" }}
+                      className="px-6 py-2.5 font-bold text-xs rounded-xl cursor-pointer hover:opacity-90 transition-all disabled:opacity-50"
+                    >
+                      Save AI Provider & API Key Settings
+                    </button>
                   </div>
 
                   {/* Global Sales & AI Settings card */}

@@ -85,6 +85,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: msg });
     }
 
+    if (action === "UPDATE_AI_SETTINGS") {
+      const body = await req.clone().json();
+      const { aiProvider, apiKey, baseUrl, modelName, temperature, maxTokens, systemPrompt, fallbackPrompt, contactPhone, gstRate } = body;
+
+      const aiSettings = await prisma.aISettings.upsert({
+        where: { tenantId },
+        update: {
+          ...(aiProvider !== undefined && { aiProvider }),
+          ...(apiKey !== undefined && { apiKey }),
+          ...(baseUrl !== undefined && { baseUrl }),
+          ...(modelName !== undefined && { modelName }),
+          ...(temperature !== undefined && { temperature: Number(temperature) }),
+          ...(maxTokens !== undefined && { maxTokens: Number(maxTokens) }),
+          ...(systemPrompt !== undefined && { systemPrompt }),
+          ...(fallbackPrompt !== undefined && { fallbackPrompt }),
+          ...(contactPhone !== undefined && { contactPhone }),
+          ...(gstRate !== undefined && { gstRate: Number(gstRate) }),
+        },
+        create: {
+          tenantId,
+          aiProvider: aiProvider || "GEMINI",
+          apiKey: apiKey || null,
+          baseUrl: baseUrl || null,
+          modelName: modelName || "gemini-2.0-flash",
+          systemPrompt: systemPrompt || "You are an AI Sales Assistant...",
+          fallbackPrompt: fallbackPrompt || "Please hold on...",
+          temperature: Number(temperature || 0.7),
+          maxTokens: Number(maxTokens || 500),
+          contactPhone: contactPhone || "+919385811823",
+          gstRate: Number(gstRate || 18.0),
+        },
+      });
+
+      return NextResponse.json({ success: true, aiSettings });
+    }
+
+    if (action === "TEST_AI_KEY") {
+      const body = await req.clone().json();
+      const { aiProvider, apiKey, baseUrl, modelName } = body;
+      const { testAIProviderKey } = await import("@/lib/ai/aiSalesAgent");
+      const testResult = await testAIProviderKey({
+        provider: aiProvider || "GEMINI",
+        key: apiKey,
+        customBaseUrl: baseUrl,
+        model: modelName || "gemini-2.0-flash",
+      });
+      return NextResponse.json(testResult);
+    }
+
     return NextResponse.json({ error: "Unsupported action type" }, { status: 400 });
   } catch (error: any) {
     logger.error(`Admin Action API Error: ${error.message}`);

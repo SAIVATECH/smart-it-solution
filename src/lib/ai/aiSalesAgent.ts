@@ -48,29 +48,124 @@ async function searchKnowledgeBase(tenantId: string, query: string): Promise<str
 /**
  * Main AI Engine response generator using Groq.
  */
+export function getAIProviderEndpoint(provider?: string, customBaseUrl?: string | null): string {
+  if (customBaseUrl && customBaseUrl.trim().length > 0) {
+    return customBaseUrl.trim();
+  }
+  const p = (provider || "GEMINI").toUpperCase();
+  switch (p) {
+    case "OPENAI":
+      return "https://api.openai.com/v1/chat/completions";
+    case "CLAUDE":
+      return "https://api.anthropic.com/v1/messages";
+    case "GROQ":
+      return "https://api.groq.com/openai/v1/chat/completions";
+    case "GROK":
+      return "https://api.x.ai/v1/chat/completions";
+    case "PERPLEXITY":
+      return "https://api.perplexity.ai/chat/completions";
+    case "GEMINI":
+    default:
+      return "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+  }
+}
+
+export function getAIProviderApiKey(aiSettings: any): string {
+  if (aiSettings?.apiKey && aiSettings.apiKey.trim().length > 0) {
+    return aiSettings.apiKey.trim();
+  }
+  const provider = (aiSettings?.aiProvider || "GEMINI").toUpperCase();
+  switch (provider) {
+    case "OPENAI":
+      return process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || "";
+    case "CLAUDE":
+      return process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || "";
+    case "GROQ":
+      return process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || "";
+    case "GROK":
+      return process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.GEMINI_API_KEY || "";
+    case "PERPLEXITY":
+      return process.env.PERPLEXITY_API_KEY || process.env.GEMINI_API_KEY || "";
+    case "GEMINI":
+    default:
+      return process.env.GEMINI_API_KEY || "";
+  }
+}
+
+export async function testAIProviderKey({
+  provider,
+  key,
+  customBaseUrl,
+  model,
+}: {
+  provider: string;
+  key?: string;
+  customBaseUrl?: string;
+  model?: string;
+}) {
+  const endpoint = getAIProviderEndpoint(provider, customBaseUrl);
+  const apiKey = key?.trim() || getAIProviderApiKey({ aiProvider: provider });
+  const modelName = model || (provider === "OPENAI" ? "gpt-4o-mini" : provider === "GROQ" ? "llama-3.3-70b-versatile" : "gemini-2.0-flash");
+
+  if (!apiKey) {
+    return { success: false, message: "No API Key provided." };
+  }
+
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    };
+
+    if (provider.toUpperCase() === "CLAUDE") {
+      headers["x-api-key"] = apiKey;
+      headers["anthropic-version"] = "2023-06-01";
+      delete headers["Authorization"];
+    }
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: modelName,
+        messages: [{ role: "user", content: "Hello test" }],
+        max_tokens: 10,
+      }),
+    });
+
+    if (res.ok) {
+      return { success: true, message: `✅ Connected to ${provider} API using model ${modelName}!` };
+    } else {
+      const errText = await res.text();
+      return { success: false, message: `❌ ${provider} API returned status ${res.status}: ${errText}` };
+    }
+  } catch (err: any) {
+    return { success: false, message: `❌ Connection error: ${err.message}` };
+  }
+}
+
 export async function processCustomerMessage(
   tenantId: string,
   customerId: string,
   messageContent: string
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const aiSettings = await prisma.aISettings.findUnique({
+    where: { tenantId },
+  });
+
+  const aiProvider = (aiSettings?.aiProvider || "GEMINI").toUpperCase();
+  const apiKey = getAIProviderApiKey(aiSettings);
+  const apiUrl = getAIProviderEndpoint(aiProvider, aiSettings?.baseUrl);
 
   if (!apiKey) {
-    logger.error("Missing GEMINI_API_KEY environment variable");
+    logger.error("Missing AI API Key for tenant");
     return "Our system is undergoing maintenance. Please connect again shortly.";
   }
 
-  const apiUrl = GEMINI_API_URL;
-
-  // 1. Fetch Tenant's AI configurations & Salespersons
-  const [aiSettings, salespersons] = await Promise.all([
-    prisma.aISettings.findUnique({
-      where: { tenantId },
-    }),
-    prisma.salesperson.findMany({
-      where: { tenantId },
-    }),
-  ]);
+  // 1. Fetch Tenant's Salespersons
+  const salespersons = await prisma.salesperson.findMany({
+    where: { tenantId },
+  });
 
   const salespersonsList = salespersons.map(s => `- ${s.name} (Phone: ${s.phone}, Specialization: ${s.specialization})`).join("\n");
   const salespersonsContext = salespersonsList.length > 0
@@ -114,11 +209,11 @@ export async function processCustomerMessage(
   12. HUMAN GREETINGS RESPONSE: If the customer sends a simple greeting like "hello", "HI", "hey", or "good morning" without asking about a specific product or service, you MUST respond immediately with a warm welcome: "Hello! Welcome to Smart IT Solutions - No.1 In Laptops service | Computer Dealer | Printer Dealer | CCTV Installation | Gaming PC. How can I assist you today?". Do NOT call the searchProducts tool.
   13. CONCISE WHATSAPP HUMAN SALES CHAT STYLE: If the customer asks for a product price or model details without specifying the brand (e.g. asking for '2mp dual colour price' or '4ch NVR'), first ask: "BRAND ?" or "Which brand do you prefer? CP Plus, Dahua, or Hikvision?". Keep price replies short, direct, and human (e.g. "*CP Plus 2MP Dual Light Camera*: 1250RS").`;
 
-  let modelName = aiSettings?.modelName || "gemini-2.0-flash";
-  if (!modelName.includes("gemini")) {
-    modelName = "gemini-2.0-flash";
-  }
-  const candidateModels = Array.from(new Set([modelName, "gemini-2.0-flash", "gemini-1.5-flash"]));
+  let modelName = aiSettings?.modelName || (aiProvider === "OPENAI" ? "gpt-4o-mini" : aiProvider === "GROQ" ? "llama-3.3-70b-versatile" : aiProvider === "GROK" ? "grok-2-latest" : aiProvider === "PERPLEXITY" ? "sonar" : "gemini-2.0-flash");
+  const candidateModels = Array.from(new Set([
+    modelName,
+    aiProvider === "OPENAI" ? "gpt-4o-mini" : aiProvider === "GROQ" ? "llama-3.3-70b-versatile" : "gemini-2.0-flash",
+  ]));
   const temperature = aiSettings?.temperature ?? 0.3;
 
   // 2. Fetch Customer Context and conversation history

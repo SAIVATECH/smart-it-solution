@@ -251,11 +251,14 @@ model AISettings {
   id             String   @id @default(uuid())
   tenantId       String   @unique
   tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  aiProvider     String   @default("GEMINI") // GEMINI, OPENAI, CLAUDE, GROQ, GROK, PERPLEXITY
+  apiKey         String?  @db.Text
+  baseUrl        String?  @db.Text
   systemPrompt   String   @db.Text
   fallbackPrompt String   @db.Text
   maxTokens      Int      @default(500)
   temperature    Float    @default(0.7)
-  modelName      String   @default("grok-beta")
+  modelName      String   @default("gemini-2.0-flash")
   contactPhone   String?  @default("+919385811823")
   gstRate        Float    @default(18.0)
   createdAt      DateTime @default(now())
