@@ -89,33 +89,37 @@ export async function POST(req: NextRequest) {
       const body = await req.clone().json();
       const { aiProvider, apiKey, baseUrl, modelName, temperature, maxTokens, systemPrompt, fallbackPrompt, contactPhone, gstRate } = body;
 
+      const updateData: any = {
+        ...(aiProvider !== undefined && { aiProvider }),
+        ...(apiKey !== undefined && { apiKey }),
+        ...(baseUrl !== undefined && { baseUrl }),
+        ...(modelName !== undefined && { modelName }),
+        ...(temperature !== undefined && { temperature: Number(temperature) }),
+        ...(maxTokens !== undefined && { maxTokens: Number(maxTokens) }),
+        ...(systemPrompt !== undefined && { systemPrompt }),
+        ...(fallbackPrompt !== undefined && { fallbackPrompt }),
+        ...(contactPhone !== undefined && { contactPhone }),
+        ...(gstRate !== undefined && { gstRate: Number(gstRate) }),
+      };
+
+      const createData: any = {
+        tenantId,
+        aiProvider: aiProvider || "GEMINI",
+        apiKey: apiKey || null,
+        baseUrl: baseUrl || null,
+        modelName: modelName || "gemini-2.0-flash",
+        systemPrompt: systemPrompt || "You are an AI Sales Assistant...",
+        fallbackPrompt: fallbackPrompt || "Please hold on...",
+        temperature: Number(temperature || 0.7),
+        maxTokens: Number(maxTokens || 500),
+        contactPhone: contactPhone || "+919385811823",
+        gstRate: Number(gstRate || 18.0),
+      };
+
       const aiSettings = await prisma.aISettings.upsert({
         where: { tenantId },
-        update: {
-          ...(aiProvider !== undefined && { aiProvider }),
-          ...(apiKey !== undefined && { apiKey }),
-          ...(baseUrl !== undefined && { baseUrl }),
-          ...(modelName !== undefined && { modelName }),
-          ...(temperature !== undefined && { temperature: Number(temperature) }),
-          ...(maxTokens !== undefined && { maxTokens: Number(maxTokens) }),
-          ...(systemPrompt !== undefined && { systemPrompt }),
-          ...(fallbackPrompt !== undefined && { fallbackPrompt }),
-          ...(contactPhone !== undefined && { contactPhone }),
-          ...(gstRate !== undefined && { gstRate: Number(gstRate) }),
-        },
-        create: {
-          tenantId,
-          aiProvider: aiProvider || "GEMINI",
-          apiKey: apiKey || null,
-          baseUrl: baseUrl || null,
-          modelName: modelName || "gemini-2.0-flash",
-          systemPrompt: systemPrompt || "You are an AI Sales Assistant...",
-          fallbackPrompt: fallbackPrompt || "Please hold on...",
-          temperature: Number(temperature || 0.7),
-          maxTokens: Number(maxTokens || 500),
-          contactPhone: contactPhone || "+919385811823",
-          gstRate: Number(gstRate || 18.0),
-        },
+        update: updateData,
+        create: createData,
       });
 
       return NextResponse.json({ success: true, aiSettings });
