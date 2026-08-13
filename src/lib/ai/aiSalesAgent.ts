@@ -272,7 +272,7 @@ export async function processCustomerMessage(
     }
   }
 
-  // Pattern Rule B: Brand specified (or "any brand") -> Direct concise DB price response
+  // Pattern Rule B: Brand specified (or "any brand") -> Return full both-prices breakdown (PDC & CDC with GST & NETT price)
   if (hasBrand) {
     let queryContext = messageContent.replace(/any brand|any|anything|all brand|all/gi, "").trim();
     if (queryContext.length < 2) {
@@ -283,29 +283,20 @@ export async function processCustomerMessage(
     if (queryContext.length >= 2) {
       const matchedProducts = await getProductCatalog(tenantId, queryContext);
       if (matchedProducts.length > 0) {
-        logger.info(`Fast Direct Match: Found ${matchedProducts.length} items for "${queryContext}".`);
-        if (matchedProducts.length === 1) {
-          const p = matchedProducts[0];
-          let specs: any = {};
-          try {
-            specs = typeof p.specifications === "string" ? JSON.parse(p.specifications) : (p.specifications || {});
-          } catch (e) {}
-          const basePrice = Number(specs.CDC || specs.PDC || p.price || 0);
-          const finalPrice = Math.round(basePrice * (1 + currentGstRate / 100));
-          return `${finalPrice}RS`;
-        } else {
-          let reply = "";
-          for (const p of matchedProducts.slice(0, 3)) {
-            let specs: any = {};
-            try {
-              specs = typeof p.specifications === "string" ? JSON.parse(p.specifications) : (p.specifications || {});
-            } catch (e) {}
-            const basePrice = Number(specs.CDC || specs.PDC || p.price || 0);
-            const finalPrice = Math.round(basePrice * (1 + currentGstRate / 100));
-            reply += `*${p.name}*: ${finalPrice}RS\n`;
-          }
-          return reply.trim();
-        }
+        logger.info(`Fast Direct Match: Found ${matchedProducts.length} items for "${queryContext}". Formatting complete PDC & CDC breakdown.`);
+        const formattedProducts = JSON.stringify(
+          matchedProducts.map((p) => ({
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            price: p.price,
+            stock: p.stock,
+            discount: p.discount,
+            description: p.description,
+            specifications: p.specifications,
+          }))
+        );
+        return formatFallbackProductsReply(formattedProducts, currentGstRate);
       }
     }
   }
