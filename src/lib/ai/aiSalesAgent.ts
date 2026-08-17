@@ -209,10 +209,12 @@ export async function processCustomerMessage(
   12. HUMAN GREETINGS RESPONSE: If the customer sends a simple greeting like "hello", "HI", "hey", or "good morning" without asking about a specific product or service, you MUST respond immediately with a warm welcome: "Hello! Welcome to Smart IT Solutions - No.1 In Laptops service | Computer Dealer | Printer Dealer | CCTV Installation | Gaming PC. How can I assist you today?". Do NOT call the searchProducts tool.
   13. CONCISE WHATSAPP HUMAN SALES CHAT STYLE: If the customer asks for a product price or model details without specifying the brand (e.g. asking for '2mp dual colour price' or '4ch NVR'), first ask: "BRAND ?" or "Which brand do you prefer? CP Plus, Dahua, or Hikvision?". Keep price replies short, direct, and human (e.g. "*CP Plus 2MP Dual Light Camera*: 1250RS").`;
 
-  let modelName = aiSettings?.modelName || (aiProvider === "OPENAI" ? "gpt-4o-mini" : aiProvider === "GROQ" ? "llama-3.3-70b-versatile" : aiProvider === "GROK" ? "grok-2-latest" : aiProvider === "PERPLEXITY" ? "sonar" : "gemini-2.0-flash");
+  let modelName = aiSettings?.modelName || (aiProvider === "OPENAI" ? "gpt-4o-mini" : aiProvider === "GROQ" ? "llama-3.3-70b-versatile" : aiProvider === "GROK" ? "grok-2-latest" : aiProvider === "PERPLEXITY" ? "sonar" : "gemini-1.5-flash");
   const candidateModels = Array.from(new Set([
     modelName,
-    aiProvider === "OPENAI" ? "gpt-4o-mini" : aiProvider === "GROQ" ? "llama-3.3-70b-versatile" : "gemini-2.0-flash",
+    aiProvider === "OPENAI" ? "gpt-4o-mini" : aiProvider === "GROQ" ? "llama-3.3-70b-versatile" : "gemini-1.5-flash",
+    "gemini-3.6-flash",
+    "gemini-1.5-pro",
   ]));
   const temperature = aiSettings?.temperature ?? 0.3;
 
@@ -241,7 +243,7 @@ export async function processCustomerMessage(
   // 3. Perform RAG injection
   const kbContext = await searchKnowledgeBase(tenantId, messageContent);
 
-  // De-duplicate welcome greetings if welcome header was already sent in conversation history
+  // Simple Greetings: Return immediate warm welcome without API overhead
   const isSimpleGreeting = ["hello", "hi", "hey", "good morning", "good afternoon"].includes(messageContent.trim().toLowerCase());
   if (isSimpleGreeting) {
     const hasSentWelcome = historyMessages.some(
@@ -250,6 +252,9 @@ export async function processCustomerMessage(
     if (hasSentWelcome) {
       logger.info(`Welcome greeting already sent in conversation ${customerId}. Returning short greeting response.`);
       return "Hi! How can I assist you with your inquiry today?";
+    } else {
+      logger.info(`First simple greeting for conversation ${customerId}. Returning main welcome header.`);
+      return "Hello! Welcome to Smart IT Solutions - No.1 In Laptops service | Computer Dealer | Printer Dealer | CCTV Installation | Gaming PC. How can I assist you today?";
     }
   }
 
