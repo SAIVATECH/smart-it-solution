@@ -57,13 +57,27 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Locate the registered WhatsApp Account in multi-tenant SaaS DB
-    const waAccount = await prisma.whatsAppAccount.findFirst({
+    let waAccount = await prisma.whatsAppAccount.findFirst({
       where: { phoneId },
       include: { tenant: true },
     });
 
     if (!waAccount) {
-      logger.error(`Received webhook event for unregistered phoneId: ${phoneId}`);
+      logger.info(`Received webhook event for new/unregistered phoneId: ${phoneId}. Binding to registered tenant account.`);
+      waAccount = await prisma.whatsAppAccount.findFirst({
+        include: { tenant: true },
+      });
+
+      if (waAccount) {
+        await prisma.whatsAppAccount.update({
+          where: { id: waAccount.id },
+          data: { phoneId },
+        }).catch((e) => logger.warn(`Failed to auto-update phoneId: ${e.message}`));
+      }
+    }
+
+    if (!waAccount) {
+      logger.error(`Received webhook event for unregistered phoneId: ${phoneId} and no tenant account exists.`);
       return NextResponse.json({ error: "Unregistered phone id" }, { status: 404 });
     }
 
