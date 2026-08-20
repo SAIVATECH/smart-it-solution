@@ -55,17 +55,36 @@ export async function POST(req: NextRequest) {
           return matchedKey !== undefined ? row[matchedKey] : null;
         };
 
-        const idVal = String(findVal(["id", "model no", "model number", "model_no", "sl no", "sl. no", "slno", "sr no", "sr. no"]) || "").trim();
-        const nameVal = String(findVal(["name", "product", "product name", "item", "item name", "title", "particulars", "description"]) || "").trim();
-        const priceVal = parseFloat(String(findVal(["price", "pdc", "cdc", "rate", "amount", "mrp"]) || "0").replace(/[$,]/g, ""));
-        const stockVal = parseInt(String(findVal(["stock", "qty", "quantity"]) || "0").replace(/,/g, ""), 10);
-        const categoryVal = String(findVal(["category", "group", "department"]) || "").trim();
-        const skuVal = String(findVal(["sku", "model no", "model number", "code", "part code"]) || "").trim();
-        const descVal = String(findVal(["description", "remarks", "details"]) || "").trim();
+        let idVal = String(findVal([
+          "id", "model no", "model number", "model_no", "model", "model name",
+          "sl no", "sl. no", "slno", "sr no", "sr. no", "s.no", "sno",
+          "code", "part code", "item code", "product code", "sku"
+        ]) || "").trim();
 
-        if (!idVal || !nameVal) {
+        let nameVal = String(findVal([
+          "name", "product", "product name", "item", "item name", "title",
+          "particulars", "description", "product description", "details",
+          "specification", "specifications", "model no", "model"
+        ]) || "").trim();
+
+        const priceVal = parseFloat(String(findVal(["price", "pdc", "cdc", "rate", "amount", "mrp", "dealer price", "unit price"]) || "0").replace(/[$,]/g, ""));
+        const stockVal = parseInt(String(findVal(["stock", "qty", "quantity"]) || "0").replace(/,/g, ""), 10);
+        const categoryVal = String(findVal(["category", "group", "department", "type"]) || "").trim();
+        const skuVal = String(findVal(["sku", "code", "part code", "model no", "model number", "model"]) || "").trim();
+        const descVal = String(findVal(["description", "remarks", "details", "particulars", "specification"]) || "").trim();
+
+        // Smart fallbacks: if product description is present but explicit ID is missing
+        if (!nameVal && idVal) {
+          nameVal = idVal;
+        }
+        if (!idVal && nameVal) {
+          idVal = nameVal.toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 50);
+        }
+
+        // Only skip if row has neither a product name nor an ID
+        if (!nameVal && !idVal) {
           skippedCount++;
-          errors.push(`Row skipped: missing required product identifier (ID/Model no) or product name (Description/Name).`);
+          errors.push(`Row skipped: empty row or missing product description/model name.`);
           continue;
         }
 
