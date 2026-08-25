@@ -79,6 +79,20 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Category cache to minimize database connection roundtrips
+    const categoryCache = new Map<string, string>();
+
+    const processedItems: Array<{
+      localId: string;
+      name: string;
+      sku: string | null;
+      description: string | null;
+      price: number;
+      stock: number;
+      categoryVal: string;
+      specsJson: string;
+    }> = [];
+
     for (const row of rows) {
       try {
         const rowKeys = Object.keys(row);
@@ -147,58 +161,80 @@ export async function POST(req: NextRequest) {
             specs[displayName] = row[k];
           }
         });
-        const specsJson = JSON.stringify(specs);
 
-        // Upsert category if name is provided
+        processedItems.push({
+          localId: idVal,
+          name: nameVal,
+          sku: skuVal || null,
+          description: descVal || null,
+          price: priceVal,
+          stock: stockVal,
+          categoryVal,
+          specsJson: JSON.stringify(specs),
+        });
+      } catch (err: any) {
+        errorCount++;
+        errors.push(`Row parsing error: ${err.message}`);
+      }
+    }
+
+    // Process database writes sequentially for items with category caching
+    for (const item of processedItems) {
+      try {
         let categoryId: string | null = null;
-        if (categoryVal) {
-          const categoryObj = await prisma.category.upsert({
-            where: {
-              tenantId_localId: {
-                tenantId,
-                localId: `cat_${categoryVal.toLowerCase().replace(/\s+/g, "_")}`,
+        if (item.categoryVal) {
+          const catKey = item.categoryVal.toLowerCase().replace(/\s+/g, "_");
+          if (categoryCache.has(catKey)) {
+            categoryId = categoryCache.get(catKey)!;
+          } else {
+            const categoryObj = await prisma.category.upsert({
+              where: {
+                tenantId_localId: {
+                  tenantId,
+                  localId: `cat_${catKey}`,
+                },
               },
-            },
-            update: { name: categoryVal },
-            create: {
-              tenantId,
-              name: categoryVal,
-              localId: `cat_${categoryVal.toLowerCase().replace(/\s+/g, "_")}`,
-            },
-          });
-          categoryId = categoryObj.id;
+              update: { name: item.categoryVal },
+              create: {
+                tenantId,
+                name: item.categoryVal,
+                localId: `cat_${catKey}`,
+              },
+            });
+            categoryId = categoryObj.id;
+            categoryCache.set(catKey, categoryId);
+          }
         }
 
-        // Create or update products
         await prisma.product.upsert({
           where: {
             tenantId_localId: {
               tenantId,
-              localId: idVal,
+              localId: item.localId,
             },
           },
           update: {
-            name: nameVal,
-            sku: skuVal || null,
-            description: descVal || null,
-            price: priceVal,
-            stock: stockVal,
+            name: item.name,
+            sku: item.sku,
+            description: item.description,
+            price: item.price,
+            stock: item.stock,
             categoryId,
-            specifications: specsJson,
+            specifications: item.specsJson,
             isAvailable: true,
             version: { increment: 1 },
             syncSource: "EXCEL_UPLOAD",
           },
           create: {
             tenantId,
-            localId: idVal,
-            name: nameVal,
-            sku: skuVal || null,
-            description: descVal || null,
-            price: priceVal,
-            stock: stockVal,
+            localId: item.localId,
+            name: item.name,
+            sku: item.sku,
+            description: item.description,
+            price: item.price,
+            stock: item.stock,
             categoryId,
-            specifications: specsJson,
+            specifications: item.specsJson,
             isAvailable: true,
             version: 1,
             syncSource: "EXCEL_UPLOAD",
@@ -208,7 +244,7 @@ export async function POST(req: NextRequest) {
         successCount++;
       } catch (err: any) {
         errorCount++;
-        errors.push(`Row error: ${err.message}`);
+        errors.push(`Product DB write error (${item.name}): ${err.message}`);
       }
     }
 
