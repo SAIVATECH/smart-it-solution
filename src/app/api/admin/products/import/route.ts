@@ -79,8 +79,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Category cache to minimize database connection roundtrips
+    // Category cache and unique ID tracking to minimize database connection roundtrips and collisions
     const categoryCache = new Map<string, string>();
+    const usedLocalIds = new Set<string>();
 
     const processedItems: Array<{
       localId: string;
@@ -138,6 +139,14 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
+        // Ensure localId is unique across the batch to avoid unique constraint collisions
+        let finalLocalId = idVal;
+        let counter = 1;
+        while (usedLocalIds.has(finalLocalId)) {
+          finalLocalId = `${idVal}_${counter++}`;
+        }
+        usedLocalIds.add(finalLocalId);
+
         const coreKeys = [
           "id", "model no", "model number", "model_no", "sl no", "sl. no", "slno", "sr no", "sr. no",
           "name", "product", "product name", "item", "item name", "title", "particulars", "description",
@@ -163,7 +172,7 @@ export async function POST(req: NextRequest) {
         });
 
         processedItems.push({
-          localId: idVal,
+          localId: finalLocalId,
           name: nameVal,
           sku: skuVal || null,
           description: descVal || null,
