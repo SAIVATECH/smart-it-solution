@@ -28,10 +28,42 @@ export async function POST(req: NextRequest) {
     const workbook = xlsx.read(new Uint8Array(buffer), { type: "array" });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    const rows = xlsx.utils.sheet_to_json(sheet) as any[];
+
+    // Dynamic Header Detection: Find the index of the row containing column headers
+    const raw2D = xlsx.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+    if (raw2D.length === 0) {
+      return NextResponse.json({ error: "Uploaded file is empty" }, { status: 400 });
+    }
+
+    let headerRowIndex = 0;
+    const tableHeaderRequiredPairs = [
+      ["category", "description"],
+      ["category", "model"],
+      ["model no", "description"],
+      ["model", "description"],
+      ["sl no", "description"],
+      ["sr no", "particulars"],
+      ["product", "price"],
+      ["item", "price"],
+    ];
+
+    for (let i = 0; i < Math.min(raw2D.length, 30); i++) {
+      const rowCells = (raw2D[i] || []).map(cell => String(cell || "").trim().toLowerCase());
+      const isHeaderRow = tableHeaderRequiredPairs.some(([k1, k2]) =>
+        rowCells.some(cell => cell.includes(k1)) && rowCells.some(cell => cell.includes(k2))
+      );
+      if (isHeaderRow) {
+        headerRowIndex = i;
+        logger.info(`Detected Excel table header at row ${i}: "${raw2D[i]?.join(" | ")}"`);
+        break;
+      }
+    }
+
+    // Extract structured objects starting from the detected header row range
+    const rows = xlsx.utils.sheet_to_json(sheet, { range: headerRowIndex }) as any[];
 
     if (rows.length === 0) {
-      return NextResponse.json({ error: "Uploaded file is empty" }, { status: 400 });
+      return NextResponse.json({ error: "Uploaded file is empty or contains no product rows" }, { status: 400 });
     }
 
     let successCount = 0;
@@ -51,23 +83,27 @@ export async function POST(req: NextRequest) {
       try {
         const rowKeys = Object.keys(row);
         const findVal = (synonyms: string[]): any => {
-          const matchedKey = rowKeys.find((k) => synonyms.includes(k.trim().toLowerCase()));
-          return matchedKey !== undefined ? row[matchedKey] : null;
+          for (const syn of synonyms) {
+            const matchedKey = rowKeys.find((k) => k.trim().toLowerCase() === syn.toLowerCase());
+            if (matchedKey !== undefined && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim().length > 0) {
+              return row[matchedKey];
+            }
+          }
+          return null;
         };
 
         let idVal = String(findVal([
-          "id", "model no", "model number", "model_no", "model", "model name",
+          "model no", "model number", "model_no", "model", "model name", "id",
           "sl no", "sl. no", "slno", "sr no", "sr. no", "s.no", "sno",
           "code", "part code", "item code", "product code", "sku"
         ]) || "").trim();
 
         let nameVal = String(findVal([
-          "name", "product", "product name", "item", "item name", "title",
-          "particulars", "description", "product description", "details",
-          "specification", "specifications", "model no", "model"
+          "description", "product description", "particulars", "name", "product name", "item name", "item", "product", "title",
+          "details", "specification", "specifications"
         ]) || "").trim();
 
-        const priceVal = parseFloat(String(findVal(["price", "pdc", "cdc", "rate", "amount", "mrp", "dealer price", "unit price"]) || "0").replace(/[$,]/g, ""));
+        const priceVal = parseFloat(String(findVal(["dealer price excl. gst (₹)", "dealer final price (incl. 18% gst)", "landing cost nlc (₹)", "price", "pdc", "cdc", "rate", "amount", "mrp", "dealer price", "unit price", "landing cost", "nlc"]) || "0").replace(/[$,]/g, ""));
         const stockVal = parseInt(String(findVal(["stock", "qty", "quantity"]) || "0").replace(/,/g, ""), 10);
         const categoryVal = String(findVal(["category", "group", "department", "type"]) || "").trim();
         const skuVal = String(findVal(["sku", "code", "part code", "model no", "model number", "model"]) || "").trim();
