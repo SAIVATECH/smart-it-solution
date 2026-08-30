@@ -1212,20 +1212,11 @@ export default function AdminDashboard() {
                   {/* Excel Manual Importer layout */}
                   {sourceActive === "EXCEL_UPLOAD" && (
                     <div className="bg-slate-900/30 border border-slate-850 rounded-2xl p-8 space-y-6">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                          <h4 className="font-bold text-base">Manual Excel / CSV Importer</h4>
-                          <p className="text-xs text-slate-400 mt-1">
-                            Upload spreadsheet files containing headers: <code className="text-cyan-400 font-mono">CATEGORY</code>, <code className="text-cyan-400 font-mono">MODEL NO</code>, <code className="text-cyan-400 font-mono">DESCRIPTION</code>, <code className="text-cyan-400 font-mono">PDC</code>, <code className="text-cyan-400 font-mono">CDC</code>.
-                          </p>
-                        </div>
-                        <a
-                          href="/sample_product_import_template.xlsx"
-                          download="Smart_IT_Solutions_Sample_Product_Template.xlsx"
-                          className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-cyan-300 font-bold text-xs rounded-xl border border-slate-700 transition-all flex items-center gap-1.5 shrink-0"
-                        >
-                          📥 Download Sample Excel Template
-                        </a>
+                      <div>
+                        <h4 className="font-bold text-base">Manual Excel / CSV Importer</h4>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Upload spreadsheet files containing headers: <code className="text-cyan-400 font-mono">CATEGORY</code>, <code className="text-cyan-400 font-mono">DESCRIPTION</code>, <code className="text-cyan-400 font-mono">MODEL NO</code>, <code className="text-cyan-400 font-mono">PDC</code>, <code className="text-cyan-400 font-mono">CDC</code>.
+                        </p>
                       </div>
 
                       {importStatus && (
