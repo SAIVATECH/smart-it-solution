@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
     const tableHeaderRequiredPairs = [
       ["category", "description"],
       ["category", "model"],
+      ["category", "brand"],
+      ["category", "pdc"],
+      ["brand", "pdc"],
       ["model no", "description"],
       ["model", "description"],
       ["sl no", "description"],

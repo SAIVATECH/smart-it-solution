@@ -1209,14 +1209,23 @@ export default function AdminDashboard() {
                     </button>
                   </div>
 
-                  {/* Excel Manual Importer layout */}
+                      {/* Excel Manual Importer layout */}
                   {sourceActive === "EXCEL_UPLOAD" && (
                     <div className="bg-slate-900/30 border border-slate-850 rounded-2xl p-8 space-y-6">
-                      <div>
-                        <h4 className="font-bold text-base">Manual Excel / CSV Importer</h4>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Upload spreadsheet files containing headers: <code className="text-cyan-400 font-mono">CATEGORY</code>, <code className="text-cyan-400 font-mono">DESCRIPTION</code>, <code className="text-cyan-400 font-mono">MODEL NO</code>, <code className="text-cyan-400 font-mono">PDC</code>, <code className="text-cyan-400 font-mono">CDC</code>.
-                        </p>
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                        <div>
+                          <h4 className="font-bold text-base">Manual Excel / CSV Importer</h4>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Upload spreadsheet files containing headers: <code className="text-cyan-400 font-mono">CATEGORY</code>, <code className="text-cyan-400 font-mono">MODEL NO</code>, <code className="text-cyan-400 font-mono">DESCRIPTION</code>, <code className="text-cyan-400 font-mono">PDC</code>, <code className="text-cyan-400 font-mono">CDC</code>.
+                          </p>
+                        </div>
+                        <a
+                          href="/api/admin/products/sample-template"
+                          download="Smart_IT_Solutions_Product_Import_Template.xlsx"
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-cyan-300 font-semibold text-xs rounded-xl border border-slate-700 flex items-center justify-center gap-2 cursor-pointer transition-all self-start sm:self-auto"
+                        >
+                          📥 Download Sample Excel Template
+                        </a>
                       </div>
 
                       {importStatus && (
@@ -1233,7 +1242,7 @@ export default function AdminDashboard() {
                             <li>Skipped Empty Rows: <span className="text-yellow-400">{importSummary.skipped}</span></li>
                             <li>Failed Rows: <span className="text-red-400">{importSummary.failed}</span></li>
                           </ul>
-                          {importSummary.errors.length > 0 && (
+                          {importSummary.errors && importSummary.errors.length > 0 && (
                             <div className="pt-2 text-[10px] text-red-500 font-mono">
                               <p className="font-bold">Errors logged:</p>
                               {importSummary.errors.map((e: string, idx: number) => (
@@ -1287,14 +1296,22 @@ export default function AdminDashboard() {
                                 },
                                 body: fd
                               });
-                              const data = await res.json();
-                              if (res.ok) {
+                              
+                              const text = await res.text();
+                              let data: any = {};
+                              try {
+                                data = JSON.parse(text);
+                              } catch {
+                                data = { error: text || `Server returned non-JSON error (${res.status})` };
+                              }
+
+                              if (res.ok && data.success) {
                                 setImportStatus("File imported successfully!");
                                 setImportSummary(data.summary);
                                 fetchSourceConfig();
                                 fetchDashboardData();
                               } else {
-                                setImportStatus(`Import failed: ${data.error}`);
+                                setImportStatus(`Import failed: ${data.error || "Unknown server error"}`);
                               }
                             } catch (err: any) {
                               setImportStatus(`Network error during import: ${err.message}`);
