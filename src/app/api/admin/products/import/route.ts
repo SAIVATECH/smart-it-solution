@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import * as xlsx from "xlsx";
 
+export const maxDuration = 60; // Extend Vercel function invocation timeout to 60 seconds
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     // Extract tenant context from middleware headers or fallback
@@ -74,15 +77,7 @@ export async function POST(req: NextRequest) {
     let errorCount = 0;
     const errors: string[] = [];
 
-    // Transaction-based write operations
-    if (mode === "REPLACE") {
-      logger.info(`Starting REPLACE product import for tenant ${tenantId}. Wiping old inventory.`);
-      await prisma.product.deleteMany({
-        where: { tenantId },
-      });
-    }
-
-    // Category cache and unique ID tracking to minimize database connection roundtrips and collisions
+    // Category cache and unique ID tracking
     const categoryCache = new Map<string, string>();
     const usedLocalIds = new Set<string>();
 
@@ -190,73 +185,101 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Process database writes sequentially for items with category caching
-    for (const item of processedItems) {
-      try {
-        let categoryId: string | null = null;
-        if (item.categoryVal) {
-          const catKey = item.categoryVal.toLowerCase().replace(/\s+/g, "_");
-          if (categoryCache.has(catKey)) {
-            categoryId = categoryCache.get(catKey)!;
-          } else {
-            const categoryObj = await prisma.category.upsert({
-              where: {
-                tenantId_localId: {
-                  tenantId,
-                  localId: `cat_${catKey}`,
-                },
-              },
-              update: { name: item.categoryVal },
-              create: {
-                tenantId,
-                name: item.categoryVal,
-                localId: `cat_${catKey}`,
-              },
-            });
-            categoryId = categoryObj.id;
-            categoryCache.set(catKey, categoryId);
-          }
-        }
-
-        await prisma.product.upsert({
-          where: {
-            tenantId_localId: {
-              tenantId,
-              localId: item.localId,
-            },
-          },
-          update: {
-            name: item.name,
-            sku: item.sku,
-            description: item.description,
-            price: item.price,
-            stock: item.stock,
-            categoryId,
-            specifications: item.specsJson,
-            isAvailable: true,
-            version: { increment: 1 },
-            syncSource: "EXCEL_UPLOAD",
-          },
-          create: {
+    // 1. Bulk Upsert Categories (Single batch)
+    const uniqueCategories = Array.from(new Set(processedItems.map((i) => i.categoryVal).filter(Boolean)));
+    for (const catName of uniqueCategories) {
+      const catKey = catName.toLowerCase().replace(/\s+/g, "_");
+      const categoryObj = await prisma.category.upsert({
+        where: {
+          tenantId_localId: {
             tenantId,
-            localId: item.localId,
-            name: item.name,
-            sku: item.sku,
-            description: item.description,
-            price: item.price,
-            stock: item.stock,
-            categoryId,
-            specifications: item.specsJson,
-            isAvailable: true,
-            version: 1,
-            syncSource: "EXCEL_UPLOAD",
+            localId: `cat_${catKey}`,
           },
-        });
+        },
+        update: { name: catName },
+        create: {
+          tenantId,
+          name: catName,
+          localId: `cat_${catKey}`,
+        },
+      });
+      categoryCache.set(catKey, categoryObj.id);
+    }
 
-        successCount++;
-      } catch (err: any) {
-        errorCount++;
-        errors.push(`Product DB write error (${item.name}): ${err.message}`);
+    // 2. Prepare Product payload with category mapping
+    const productPayload = processedItems.map((item) => {
+      const catKey = item.categoryVal ? item.categoryVal.toLowerCase().replace(/\s+/g, "_") : "";
+      return {
+        tenantId,
+        localId: item.localId,
+        name: item.name,
+        sku: item.sku,
+        description: item.description,
+        price: item.price,
+        stock: item.stock,
+        categoryId: catKey ? categoryCache.get(catKey) || null : null,
+        specifications: item.specsJson,
+        isAvailable: true,
+        syncSource: "EXCEL_UPLOAD",
+      };
+    });
+
+    // 3. Lightning Fast Bulk Operations (REPLACE or MERGE)
+    if (mode === "REPLACE") {
+      logger.info(`Starting REPLACE product import for tenant ${tenantId}. Wiping old inventory.`);
+      await prisma.product.deleteMany({ where: { tenantId } });
+      if (productPayload.length > 0) {
+        const createRes = await prisma.product.createMany({
+          data: productPayload,
+          skipDuplicates: true,
+        });
+        successCount = createRes.count;
+      }
+    } else {
+      // MERGE Mode: Bulk create missing items + batch update existing
+      const existingProducts = await prisma.product.findMany({
+        where: { tenantId, localId: { in: productPayload.map((p) => p.localId) } },
+        select: { localId: true },
+      });
+      const existingSet = new Set(existingProducts.map((p) => p.localId));
+
+      const newItems = productPayload.filter((p) => !existingSet.has(p.localId));
+      const existingItems = productPayload.filter((p) => existingSet.has(p.localId));
+
+      if (newItems.length > 0) {
+        const createRes = await prisma.product.createMany({
+          data: newItems,
+          skipDuplicates: true,
+        });
+        successCount += createRes.count;
+      }
+
+      if (existingItems.length > 0) {
+        // Chunk transaction updates in batches of 50 for optimal performance
+        const batchSize = 50;
+        for (let i = 0; i < existingItems.length; i += batchSize) {
+          const chunk = existingItems.slice(i, i + batchSize);
+          await prisma.$transaction(
+            chunk.map((item) =>
+              prisma.product.update({
+                where: { tenantId_localId: { tenantId, localId: item.localId } },
+                data: {
+                  name: item.name,
+                  sku: item.sku,
+                  description: item.description,
+                  price: item.price,
+                  stock: item.stock,
+                  categoryId: item.categoryId,
+                  specifications: item.specifications,
+                  isAvailable: true,
+                  version: { increment: 1 },
+                  syncSource: "EXCEL_UPLOAD",
+                },
+              })
+            )
+          );
+        }
+        successCount += existingItems.length;
       }
     }
 
